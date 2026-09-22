@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>界面风格方案 v2 · 端庄简约</title>
+<style>
+  /* ==========================================================================
+     设计语言 v2：端庄、简洁
+       1. 去 emoji —— 图标一律用细线 SVG，随文字颜色走
+       2. 去重投影 —— 用 1px 细边框分层，只在底部导航保留一层浅投影
+       3. 降低圆角 —— 10px，不再用 14~18px 那种"玩具感"
+       4. 一个主色 —— 墨蓝 #1B3B5F；警告朱红、完成松绿
+       5. 照片只用在有时间感、有情绪的位置（登录页、患者端问候），
+          信息密集的列表页一律不用照片
+     ========================================================================== */
+  :root {
+    --brand:      #1B3B5F;
+    --brand-2:    #2C6E8F;
+    --brand-soft: #EAF0F5;
+    --ink:        #1D2939;
+    --ink-2:      #475467;
+    --ink-3:      #8A94A6;
+    --line:       #E6E9EE;
+    --bg:         #F6F7F9;
+    --card:       #FFFFFF;
+    --warn:       #B45309;
+    --warn-soft:  #FDF3E7;
+    --danger:     #B3261E;
+    --danger-soft:#FBECEA;
+    --ok:         #2E7D5B;
+    --ok-soft:    #EAF4EF;
+    --radius:     10px;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 24px 60px;
+    background: #EDEFF3; color: var(--ink);
+    font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  .wrap { max-width: 1560px; margin: 0 auto; }
+  h1 { font-size: 24px; font-weight: 600; letter-spacing: .5px; margin: 0 0 6px; color: var(--brand); }
+  .lead { color: var(--ink-2); margin: 0 0 30px; max-width: 940px; }
+  h2 { font-size: 17px; font-weight: 600; color: var(--brand); margin: 40px 0 14px; padding-left: 11px; border-left: 3px solid var(--brand); letter-spacing: .5px; }
+  code { background: #E9EDF2; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+
+  .specs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+  .spec { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
+  .spec h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+  .spec ul { margin: 0; padding-left: 18px; color: var(--ink-2); }
+  .spec li { margin-bottom: 5px; }
+  .swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+  .sw { text-align: center; font-size: 11px; color: var(--ink-3); }
+  .sw i { display: block; width: 58px; height: 44px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 4px; }
+  .sw code { font-size: 10px; background: none; padding: 0; }
+
+  .screens { display: flex; gap: 26px; flex-wrap: wrap; }
+  .screens figure { margin: 0; }
+  .screens figcaption { text-align: center; margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+
+  .phone { width: 375px; height: 812px; background: var(--bg); border-radius: 26px; overflow: hidden;
+           position: relative; border: 1px solid #D8DDE5; box-shadow: 0 12px 28px rgba(27,59,95,.10);
+           display: flex; flex-direction: column; }
+  .scroll { flex: 1; overflow: hidden; position: relative; }
+
+  .nav { background: var(--brand); color: #fff; padding: 14px 16px 16px; display: flex; align-items: flex-start; justify-content: space-between; }
+  .nav .t { font-size: 19px; font-weight: 600; letter-spacing: .5px; }
+  .nav .s { font-size: 12.5px; opacity: .72; margin-top: 2px; }
+  .ico { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .ico.sm { width: 16px; height: 16px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); }
+  .pad { padding: 16px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .muted { color: var(--ink-3); font-size: 12.5px; }
+  .label { font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; display: block; }
+
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11.5px; background: #EEF1F5; color: var(--ink-2); white-space: nowrap; }
+  .tag.brand  { background: var(--brand-soft); color: var(--brand); }
+  .tag.danger { background: var(--danger-soft); color: var(--danger); }
+  .tag.warn   { background: var(--warn-soft);   color: var(--warn); }
+  .tag.ok     { background: var(--ok-soft);     color: var(--ok); }
+
+  .btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 46px;
+         border: none; border-radius: var(--radius); background: var(--brand); color: #fff; font-size: 15.5px;
+         font-weight: 500; letter-spacing: 1px; cursor: pointer; font-family: inherit; }
+  .btn.ghost { background: #fff; color: var(--brand); border: 1px solid var(--brand); }
+
+  .field { display: flex; align-items: center; gap: 10px; min-height: 46px; border: 1px solid var(--line);
+           border-radius: var(--radius); padding: 0 12px; background: #fff; margin-bottom: 12px; }
+  .field span { color: var(--ink-3); font-size: 14px; }
+  .field input { border: 0; outline: 0; flex: 1; font-size: 15px; font-family: inherit; color: var(--ink); background: transparent; }
+
+  .tabbar { display: flex; background: #fff; border-top: 1px solid var(--line); box-shadow: 0 -1px 6px rgba(27,59,95,.05); }
+  .tabbar div { flex: 1; padding: 8px 0 10px; text-align: center; color: var(--ink-3); font-size: 11.5px;
+                display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .tabbar div.on { color: var(--brand); font-weight: 600; }
+
+  .hero { position: relative; height: 268px; }
+  .hero img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .hero::after { content: ""; position: absolute; inset: 0;
+                 background: linear-gradient(180deg, rgba(20,44,71,.30) 0%, rgba(20,44,71,.78) 72%, rgba(20,44,71,.92) 100%); }
+  .hero .txt { position: absolute; left: 22px; right: 22px; bottom: 20px; color: #fff; z-index: 2; }
+  .hero .txt .cn { font-size: 23px; font-weight: 600; letter-spacing: 2px; }
+  .hero .txt .en { font-size: 11px; letter-spacing: 2.4px; opacity: .7; text-transform: uppercase; margin-top: 4px; }
+  .hero .txt .org { font-size: 12.5px; opacity: .82; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.25); }
+  .login-body { margin-top: -18px; position: relative; z-index: 3; padding: 0 18px; }
+
+  .band { position: relative; height: 158px; }
+  .band img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .band::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20,44,71,.15), rgba(20,44,71,.72)); }
+  .band .txt { position: absolute; left: 16px; right: 16px; bottom: 14px; color: #fff; z-index: 2; }
+  .band .txt b { font-size: 19px; font-weight: 600; letter-spacing: .5px; }
+  .band .txt div { font-size: 12.5px; opacity: .85; margin-top: 3px; }
+
+  .stats { display: flex; gap: 10px; }
+  .stats > div { flex: 1; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 8px; text-align: center; }
+  .stats b { display: block; font-size: 21px; font-weight: 600; color: var(--brand); }
+  .stats span { font-size: 11.5px; color: var(--ink-3); }
+
+  .task { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 14px 14px 16px; position: relative; overflow: hidden; }
+  .task::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--brand); }
+  .task.overdue::before { background: var(--danger); }
+  .task .name { font-size: 16px; font-weight: 600; }
+  .task .ttl { font-size: 14.5px; margin-top: 8px; }
+  .task .meta { font-size: 12.5px; color: var(--ink-3); margin-top: 4px; }
+
+  .divider { height: 1px; background: var(--line); margin: 12px 0; }
+  .sect { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); margin: 16px 12px 8px; font-weight: 600; }
+  .sect::before { content: ""; width: 3px; height: 13px; background: var(--brand); border-radius: 2px; }
+  .sect.red::before { background: var(--danger); }
+
+  .tabs { display: flex; gap: 22px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+  .tabs div { padding: 11px 0; font-size: 14.5px; color: var(--ink-3); position: relative; }
+  .tabs div.on { color: var(--brand); font-weight: 600; }
+  .tabs div.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--brand); }
+
+  .img-note { background: var(--brand-soft); border: 1px solid #D3E0EA; border-radius: var(--radius); padding: 12px 14px; color: var(--brand); font-size: 13px; }
+
+  table.pick { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+  table.pick th, table.pick td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); font-size: 13px; }
+  table.pick th { background: #F2F5F8; color: var(--brand); font-weight: 600; font-size: 12.5px; }
+  table.pick tr:last-child td { border-bottom: 0; }
+  table.pick img { width: 92px; height: 58px; object-fit: cover; border-radius: 6px; display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>界面风格方案 v2 · 端庄简约</h1>
+  <p class="lead">
+    针对"端庄大气、简约"重做的视觉规范。核心变化：去掉全部 emoji 图标、去掉重投影、
+    统一到一个墨蓝主色、圆角收小；照片只出现在有时间感和情绪的位置，信息密集的列表页不用照片。
+    照片全部来自 Unsplash（免费商用、无需署名），已下载到本地，不依赖外链。
+  </p>
+
+  <h2>一、色彩与版式规范</h2>
+  <div class="specs">
+    <div class="spec">
+      <h3>主色板</h3>
+      <div class="swatches">
+        <div class="sw"><i style="background:#1B3B5F"></i><code>#1B3B5F</code><br>主色 墨蓝</div>
+        <div class="sw"><i style="background:#2C6E8F"></i><code>#2C6E8F</code><br>次级</div>
+        <div class="sw"><i style="background:#EAF0F5"></i><code>#EAF0F5</code><br>浅底</div>
+        <div class="sw"><i style="background:#B3261E"></i><code>#B3261E</code><br>逾期/危险</div>
+        <div class="sw"><i style="background:#2E7D5B"></i><code>#2E7D5B</code><br>完成</div>
+        <div class="sw"><i style="background:#F6F7F9"></i><code>#F6F7F9</code><br>页面底色</div>
+      </div>
+      <ul style="margin-top:12px">
+        <li>主色从原来的亮蓝换成墨蓝：稳、不刺眼，符合医院场景</li>
+        <li>只用三种状态色：朱红（逾期/异常）、松绿（完成）、琥珀（待处理）</li>
+      </ul>
+    </div>
+    <div class="spec">
+      <h3>版式与元件</h3>
+      <ul>
+        <li>圆角 10px（原 14~18px），去掉玩具感</li>
+        <li>分层用 1px 细边框，不用大投影；只有底部导航保留一层极浅投影</li>
+        <li>标题 600 字重、字距 0.5~2px；正文 14~15px，次要信息 12.5px 灰</li>
+        <li>章节标题左侧 3px 竖条，替代原来的彩色色块</li>
+        <li>标签统一 4px 圆角小方块，不再用胶囊</li>
+      </ul>
+    </div>
+    <div class="spec">
+      <h3>图标</h3>
+      <ul>
+        <li><b>全部换掉 emoji</b>（医院、电话、对勾这类符号在正式系统里不合适）</li>
+        <li>改用 1.5px 细线 SVG，颜色随文字（currentColor）</li>
+        <li>底部导航、按钮、列表项统一同一套线条风格</li>
+        <li>不引入图标库，直接内联，包体积不增加</li>
+      </ul>
+    </div>
+    <div class="spec">
+      <h3>照片使用原则</h3>
+      <ul>
+        <li>只用真实摄影，不用 AI 生成图</li>
+        <li>医护端：只有登录页用照片（通栏 + 墨蓝渐变遮罩）</li>
+        <li>患者端：登录页 + 首页问候条，共两处</li>
+        <li>列表页、表单页、报告页一律不用照片，保证信息密度</li>
+        <li>照片统一加墨蓝叠色，避免"网上随便找的图"感</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>二、界面预览（375 × 812 真实尺寸）</h2>
+  <div class="screens">
+    <figure>
+      <div class="phone">
+        <div class="scroll">
+          <div class="hero">
+            <img src="../frontend/public/photos/hospital-building.jpg" alt="医院大楼" />
+            <div class="txt">
+              <div class="cn">随访工作台</div>
+              <div class="en">Follow-up Workstation</div>
+              <div class="org">XX 市第一人民医院 · 消化内科</div>
+            </div>
+          </div>
+          <div class="login-body">
+            <div class="card pad">
+              <label class="label">工号</label>
+              <div class="field">
+                <svg class="ico sm" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <input value="D0231" readonly />
+              </div>
+              <label class="label">密码</label>
+              <div class="field">
+                <svg class="ico sm" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                <input value="password" readonly />
+              </div>
+              <button class="btn" style="margin-top:6px">登 录</button>
+              <div class="muted" style="text-align:center;margin-top:14px;font-size:12px">账号由科室管理员创建，不支持自助注册</div>
+            </div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div><svg class="ico sm" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>待办</div>
+          <div><svg class="ico sm" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>患者</div>
+          <div><svg class="ico sm" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 21v-1a6 6 0 0 1 12 0v1"/></svg>我的</div>
+        </div>
+      </div>
+      <figcaption>医护端 · 登录（照片通栏 + 墨蓝遮罩）</figcaption>
+    </figure>
+
+    <figure>
+      <div class="phone">
+        <div class="scroll">
+          <div class="nav">
+            <div>
+              <div class="t">待办</div>
+              <div class="s">李医生 · 消化内科</div>
+            </div>
+            <svg class="ico" viewBox="0 0 24 24" style="opacity:.85"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+          </div>
+          <div style="padding:12px">
+            <div class="card pad" style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div class="muted">2026年9月18日 星期五</div>
+                <div style="font-size:23px;font-weight:600;color:var(--brand);margin-top:2px">3 <span style="font-size:13px;font-weight:400;color:var(--ink-3)">条待办</span></div>
+              </div>
+              <div style="display:flex;gap:16px;text-align:center">
+                <div><div style="font-size:17px;font-weight:600;color:var(--danger)">2</div><div class="muted" style="font-size:11px">逾期</div></div>
+                <div><div style="font-size:17px;font-weight:600;color:var(--brand)">1</div><div class="muted" style="font-size:11px">今日</div></div>
+                <div><div style="font-size:17px;font-weight:600;color:var(--ink-2)">0</div><div class="muted" style="font-size:11px">本周</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="tabs">
+            <div class="on">指派给我</div>
+            <div>本组全部</div>
+          </div>
+          <div class="sect red">已逾期（2）</div>
+          <div style="padding:0 12px">
+            <div class="task overdue">
+              <div class="row">
+                <div><span class="name">张春</span> <span class="tag brand" style="margin-left:6px">胆总管结石</span></div>
+                <span class="tag danger">逾期 2 天</span>
+              </div>
+              <div class="ttl">术后 3 天电话回访</div>
+              <div class="meta">男 58岁 · 住院号 2026003721</div>
+              <div class="divider"></div>
+              <div class="row">
+                <span class="muted">应完成 2026-09-16</span>
+                <button class="btn" style="width:auto;min-height:34px;padding:0 18px;font-size:13.5px">立即回访</button>
+              </div>
+            </div>
+          </div>
+          <div class="sect">今天（1）</div>
+          <div style="padding:0 12px">
+            <div class="task">
+              <div class="row"><span class="name">陈芳</span><span class="tag">今日</span></div>
+              <div class="ttl">术后 3 天电话回访</div>
+              <div class="meta">女 61岁 · 住院号 2026005201</div>
+            </div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div class="on"><svg class="ico sm" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>待办</div>
+          <div><svg class="ico sm" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>患者</div>
+          <div><svg class="ico sm" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 21v-1a6 6 0 0 1 12 0v1"/></svg>我的</div>
+        </div>
+      </div>
+      <figcaption>医护端 · 待办（无照片，信息优先）</figcaption>
+    </figure>
+
+    <figure>
+      <div class="phone">
+        <div class="scroll">
+          <div class="band">
+            <img src="../frontend/public/photos/handshake-care.jpg" alt="医护与患者交流" />
+            <div class="txt">
+              <b>您好，陈芳</b>
+              <div>这是科室为您安排的复查时间表</div>
+            </div>
+          </div>
+          <div style="padding:14px 16px">
+            <div class="stats">
+              <div><b>0</b><span>已完成</span></div>
+              <div><b>3</b><span>待进行</span></div>
+              <div><b>0</b><span>已过期</span></div>
+            </div>
+            <div class="sect" style="margin-left:0">我的随访安排</div>
+            <div class="task" style="margin-bottom:10px">
+              <div class="row"><b style="font-size:16px">术后 3 天电话回访</b><span class="tag brand">待进行</span></div>
+              <div class="meta">2026-09-18 · 电话回访</div>
+            </div>
+            <div class="task" style="margin-bottom:10px">
+              <div class="row"><b style="font-size:16px">病理报告出具后通知患者</b><span class="tag brand">待进行</span></div>
+              <div class="meta">2026-09-21 · 报告通知</div>
+            </div>
+            <div class="task">
+              <div class="row"><b style="font-size:16px">术后复查肠镜</b><span class="tag">待进行</span></div>
+              <div class="meta">2026-12-17 · 门诊复查</div>
+            </div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div class="on"><svg class="ico sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>随访安排</div>
+          <div><svg class="ico sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>我的报告</div>
+          <div><svg class="ico sm" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 21v-1a6 6 0 0 1 12 0v1"/></svg>我的</div>
+        </div>
+      </div>
+      <figcaption>患者端 · 首页（问候照片带）</figcaption>
+    </figure>
+
+    <figure>
+      <div class="phone">
+        <div class="scroll">
+          <div class="nav">
+            <div>
+              <div class="t">我的报告</div>
+              <div class="s">只显示医生已确认并发布的报告</div>
+            </div>
+          </div>
+          <div style="padding:14px 16px">
+            <div class="card pad">
+              <div class="row">
+                <b style="font-size:16.5px">结肠息肉（乙状结肠）</b>
+                <span class="tag warn">需按期复诊</span>
+              </div>
+              <div class="muted" style="margin-top:6px">报告日期 2026-09-15</div>
+              <div class="divider"></div>
+              <div class="img-note"><b>医生解读：</b>这是良性病变，切干净了，不用紧张。</div>
+              <div style="margin-top:12px">
+                <div class="muted">病理结论</div>
+                <div style="margin-top:2px">管状腺瘤，低级别上皮内瘤变，切缘阴性。</div>
+              </div>
+              <div style="margin-top:12px">
+                <div class="muted">复诊建议</div>
+                <div style="margin-top:2px">6-12 个月复查一次肠镜</div>
+              </div>
+              <div class="muted" style="margin-top:14px;font-size:12px">报告编号 BL20260915-001</div>
+            </div>
+            <div class="card pad" style="margin-top:12px;display:flex;gap:10px;align-items:center">
+              <svg class="ico" viewBox="0 0 24 24" style="color:var(--brand)"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+              <div class="muted" style="font-size:12.5px">报告有疑问时，请拨打科室电话或复诊时当面询问医生。</div>
+            </div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div><svg class="ico sm" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>随访安排</div>
+          <div class="on"><svg class="ico sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>我的报告</div>
+          <div><svg class="ico sm" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M6 21v-1a6 6 0 0 1 12 0v1"/></svg>我的</div>
+        </div>
+      </div>
+      <figcaption>患者端 · 报告详情（不用照片）</figcaption>
+    </figure>
+  </div>
+
+  <h2>三、照片清单（请重点看这一节）</h2>
+  <p class="lead" style="margin-bottom:14px">
+    下面 8 张是备选，都已下载到本地 <code>frontend/public/photos/</code>，可商用、无需署名、不依赖外链。
+    请告诉我哪些留、哪些换、哪个位置想换别的题材。
+  </p>
+  <table class="pick">
+    <tr><th style="width:110px">预览</th><th style="width:210px">文件</th><th>建议用途</th><th style="width:100px">状态</th></tr>
+    <tr><td><img src="../frontend/public/photos/hospital-building.jpg" /></td><td>hospital-building.jpg</td><td>医护端登录页通栏：现代医院建筑，稳重大气</td><td>已采用</td></tr>
+    <tr><td><img src="../frontend/public/photos/handshake-care.jpg" /></td><td>handshake-care.jpg</td><td>患者端首页问候条：护士与老年患者交流，有温度</td><td>已采用</td></tr>
+    <tr><td><img src="../frontend/public/photos/doctor-patient-2.jpg" /></td><td>doctor-patient-2.jpg</td><td>备选：医生面诊，可用于科室介绍或帮助页</td><td>备选</td></tr>
+    <tr><td><img src="../frontend/public/photos/medical-team.jpg" /></td><td>medical-team.jpg</td><td>备选：测量血压，适合健康宣教区</td><td>备选</td></tr>
+    <tr><td><img src="../frontend/public/photos/hospital-reception.jpg" /></td><td>hospital-reception.jpg</td><td>备选：导诊台 / 院区环境</td><td>备选</td></tr>
+    <tr><td><img src="../frontend/public/photos/stethoscope.jpg" /></td><td>stethoscope.jpg</td><td>备选：听诊器静物，适合空状态或页脚</td><td>备选</td></tr>
+    <tr><td><img src="../frontend/public/photos/doctor-portrait.jpg" /></td><td>doctor-portrait.jpg</td><td>备选：医生肖像，可用于"我的医生"卡片</td><td>备选</td></tr>
+    <tr><td><img src="../frontend/public/photos/pharmacy.jpg" /></td><td>pharmacy.jpg</td><td>备选：用药提醒相关页面</td><td>备选</td></tr>
+  </table>
+
+  <h2>四、需要你拍板的三件事</h2>
+  <div class="specs">
+    <div class="spec">
+      <h3>1. 主色</h3>
+      <ul>
+        <li>当前方案：墨蓝 #1B3B5F</li>
+        <li>备选 A：藏青偏黑 #14283C（更沉稳、偏行政）</li>
+        <li>备选 B：青瓷墨绿 #14524A（更柔和，患者端更亲切）</li>
+        <li>备选 C：医院 VI 标准色（给我色值我直接换）</li>
+      </ul>
+    </div>
+    <div class="spec">
+      <h3>2. 照片密度</h3>
+      <ul>
+        <li>方案 A（当前）：只有登录页与患者端首页用照片，其余全素</li>
+        <li>方案 B：再加"我的"页头部一张小图</li>
+        <li>方案 C：完全不用照片，纯色 + 线条（最简，但偏冷）</li>
+      </ul>
+    </div>
+    <div class="spec">
+      <h3>3. 照片来源</h3>
+      <ul>
+        <li>当前：Unsplash，已本地化，免费商用、无需署名</li>
+        <li>医院自有宣传照（院区、科室、团队）换上最合适、最有辨识度</li>
+        <li>若有版权图库账号，下载后放到 frontend/public/photos 同名替换即可，界面不用再改</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="img-note" style="margin-top:22px">
+    <b>关于"上网找图"的说明：</b>我核对了网络可达情况——百度打不开，必应图片结果里大量是
+    freepik / dreamstime / alamy 这类带水印的付费图库，直接抓下来用有版权风险，所以我没有那样做。
+    本方案的图片全部来自 Unsplash 免费商用授权，已下载到项目里。
+    如果你希望用特定来源（医院实拍、自有图库），把文件给我，我同名替换，界面不用再改。
+  </div>
+</div>
+</body>
+</html>

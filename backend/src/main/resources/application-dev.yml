@@ -1,0 +1,51 @@
+# =============================================================================
+#  本地开发配置
+#  连的是本机便携版 PostgreSQL（127.0.0.1:55432），仅用于开发调试。
+#  生产配置见 application-prod.yml（由 .env 注入）。
+# =============================================================================
+spring:
+  datasource:
+    # 应用连接：必须是非超级用户，否则行级安全策略失效
+    url: jdbc:postgresql://127.0.0.1:55432/followup_dev?ApplicationName=followup
+    username: app_rw
+    password: ${DB_APP_PASSWORD:CHANGE_ME_ON_DEPLOY}
+    hikari:
+      # 【压测实测，别凭感觉调大】
+      # 1000 位患者 / 6010 个任务、20 并发的条件下：
+      #   pool=10 → P50 43ms / P95 169ms / P99 225ms
+      #   pool=20 → P50 31ms / P95 200ms / P99 632ms / max 2883ms
+      # 连接数调大只是把"排队"从应用内挪到了数据库侧：中位延迟变好，
+      # 但尾部延迟明显恶化（单机 CPU 是真正的瓶颈）。
+      # 结论：默认保持 10；换到目标服务器后请用 tools/load-test.mjs 实测再定。
+      # 经验值：pool ≈ CPU 核数 × 2~4，且为数据库 max_connections 留出余量。
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN:2}
+      # 【演练实测】数据库中断时，这个值就是用户盯着转圈的时长。
+      # 原来 10 秒太长，调到 5 秒：既给数据库留出重连机会，又不至于让护士干等。
+      connection-timeout: ${DB_CONN_TIMEOUT_MS:5000}
+      pool-name: followup-pool
+  # 迁移使用超级用户，因为建表脚本里有 CREATE EXTENSION / CREATE ROLE
+  flyway:
+    url: jdbc:postgresql://127.0.0.1:55432/followup_dev
+    user: postgres
+    password: ${DB_SUPERUSER_PASSWORD:}
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password: ${REDIS_PASSWORD:}
+      timeout: 3s
+      # 开发时没有 Redis 也能启动（缓存降级为直查数据库）
+      repositories:
+        enabled: false
+
+logging:
+  level:
+    com.hospital.followup: DEBUG
+    org.hibernate.SQL: INFO
+
+# 本地开发未安装 Redis 时，关闭其健康检查，避免 /actuator/health 报 DOWN
+management:
+  health:
+    redis:
+      enabled: false

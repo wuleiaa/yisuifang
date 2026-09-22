@@ -1,0 +1,377 @@
+/* 患者端样式：面向中老年患者，字号偏大、按钮偏高、对比度偏强 */
+:root {
+  /* 设计语言 v2：与医护端同一套色板（墨蓝 + 朱红 / 琥珀 / 松绿） */
+  --brand: #1b3b5f;
+  --brand-soft: #eaf0f5;
+  --ink: #1d2939;
+  --ink-soft: #475467;
+  --line: #e6e9ee;
+  --bg: #f6f7f9;
+  --warn: #b45309;
+  --warn-soft: #fdf3e7;
+  --danger: #b3261e;
+  --danger-soft: #fbecea;
+  --ok: #2e7d5b;
+  --ok-soft: #eaf4ef;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.app {
+  max-width: 560px;
+  margin: 0 auto;
+  min-height: 100%;
+  background: var(--bg);
+  padding-bottom: 84px;
+}
+
+.page {
+  padding: 18px 16px 8px;
+}
+
+.h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 6px 0 4px;
+}
+
+.sub {
+  color: var(--ink-soft);
+  font-size: 15px;
+  margin-bottom: 18px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+}
+
+.card.tap {
+  cursor: pointer;
+}
+
+.card.tap:active {
+  transform: scale(0.995);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.muted {
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 14px;
+  white-space: nowrap;
+  background: #eef2f7;
+  color: var(--ink-soft);
+}
+
+.chip.ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.chip.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.chip.danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.chip.brand {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.btn {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  border: none;
+  border-radius: 12px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn[disabled] {
+  opacity: 0.5;
+}
+
+.btn.ghost {
+  background: #fff;
+  color: var(--brand);
+  border: 1px solid var(--brand);
+}
+
+.field {
+  margin-bottom: 14px;
+}
+
+.field label {
+  display: block;
+  font-size: 15px;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+input,
+textarea {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-size: 18px;
+  background: #fff;
+  color: var(--ink);
+  font-family: inherit;
+}
+
+input:focus,
+textarea:focus {
+  outline: 2px solid var(--brand-soft);
+  border-color: var(--brand);
+}
+
+.opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  min-height: 50px;
+  margin-bottom: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  font-size: 17px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.opt.on {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.tabbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  background: #fff;
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tabbar button {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 8px 0 10px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tabbar button.on {
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.tabbar .ic {
+  display: block;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.notice {
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 15px;
+  margin-bottom: 14px;
+}
+
+.notice.err {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.notice.info {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.empty {
+  text-align: center;
+  color: var(--ink-soft);
+  padding: 48px 20px;
+  font-size: 16px;
+}
+
+.stat {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.stat div {
+  flex: 1;
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+}
+
+.stat b {
+  display: block;
+  font-size: 24px;
+  color: var(--brand);
+}
+
+.stat span {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+/* ==========================================================================
+   设计语言 v2 补充：细节统一（写在后面，覆盖上面的旧规则）
+   ========================================================================== */
+
+/* 卡片改成细边框分层，去掉投影 */
+.card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+/* 标签改成小圆角方块，不再是胶囊 */
+.chip {
+  border-radius: 4px;
+}
+
+.stat div {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+/* 底部导航图标改用细线 SVG */
+.tabbar .ic {
+  display: block;
+  height: 20px;
+  line-height: 1;
+}
+
+.tabbar .ic svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 顶部问候照片带：患者端除登录页外唯一使用摄影的位置 */
+.band {
+  position: relative;
+  height: 168px;
+}
+
+.band img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.band::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(20, 44, 71, 0.18), rgba(20, 44, 71, 0.74));
+}
+
+.band .txt {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 16px;
+  color: #fff;
+  z-index: 2;
+}
+
+.band .txt b {
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.band .txt div {
+  font-size: 14px;
+  opacity: 0.86;
+  margin-top: 4px;
+}
+
+/* 章节标题左侧竖条 */
+.sect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin: 18px 2px 10px;
+}
+
+.sect::before {
+  content: '';
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--brand);
+}

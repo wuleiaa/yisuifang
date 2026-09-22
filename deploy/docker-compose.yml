@@ -1,0 +1,223 @@
+# =============================================================================
+#  医院随访管理系统 · 生产/演示部署编排
+#  用法：
+#    1. cp .env.example .env   然后修改 .env 中的密码与密钥
+#    2. docker compose up -d
+#    3. docker compose exec postgres psql -U app_rw -d followup -c \
+#         "SELECT current_user, (SELECT rolsuper FROM pg_roles WHERE rolname=current_user);"
+#       期望输出：app_rw | f     （若是 t 说明行级权限失效，必须修正）
+# =============================================================================
+
+name: followup
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+
+  # ---------------------------------------------------------------- 数据库
+  postgres:
+    image: postgres:16.10-alpine
+    container_name: followup-postgres
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_SUPERUSER}
+      POSTGRES_PASSWORD: ${DB_SUPERUSER_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+      # 应用账号密码，由 init/01-init-app-user.sh 使用
+      APP_DB_USER: ${DB_APP_USER}
+      APP_DB_PASSWORD: ${DB_APP_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # 首次初始化时自动建表（数据目录非空时不会重复执行）
+      - ../db/migration/V1__init_schema.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+      # 挂成文件而不是目录：初始化脚本只认 .sh / .sql，目录会被跳过
+      - ./init/20-init-app-user.sh:/docker-entrypoint-initdb.d/20-init-app-user.sh:ro
+      - ./backup:/backup
+    # 注意：不映射端口到宿主机。数据库只在 Docker 内网可见。
+    # 若本机开发需要连库，取消下一行注释，且只绑定 127.0.0.1
+    # ports:
+    #   - "127.0.0.1:5432:5432"
+    command:
+      - "postgres"
+      - "-c"
+      # 内存按 2 核 2G 的小机器调低。如果换成 4G 机器，可以调回 512MB/1536MB。
+      - "shared_buffers=128MB"
+      - "-c"
+      - "effective_cache_size=384MB"
+      - "-c"
+      - "work_mem=4MB"
+      - "-c"
+      - "maintenance_work_mem=64MB"
+      - "-c"
+      - "max_connections=50"
+      - "-c"
+      - "timezone=Asia/Shanghai"
+      - "-c"
+      - "log_min_duration_statement=1000"
+      - "-c"
+      - "password_encryption=scram-sha-256"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_SUPERUSER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging: *default-logging
+    networks: [backend]
+
+  # ---------------------------------------------------------------- 缓存
+  redis:
+    image: redis:7.4-alpine
+    container_name: followup-redis
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+    command:
+      - "redis-server"
+      - "--appendonly"
+      - "yes"
+      - "--maxmemory"
+      - "96mb"
+      - "--maxmemory-policy"
+      - "allkeys-lru"
+      - "--requirepass"
+      - "${REDIS_PASSWORD}"
+      - "--save"
+      - "900 1"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *default-logging
+    networks: [backend]
+
+  # ---------------------------------------------------------------- 后端应用
+  app:
+    image: ${APP_IMAGE:-followup/app:latest}
+    # 从项目根目录构建（pom 里引用了 ../db/migration，所以上下文必须是根目录）
+    #   docker compose build app
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    container_name: followup-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      SPRING_PROFILES_ACTIVE: prod
+      # 应用必须使用非超级用户，否则行级安全策略形同虚设
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME}?currentSchema=public&ApplicationName=followup
+      SPRING_DATASOURCE_USERNAME: ${DB_APP_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DB_APP_PASSWORD}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 8
+      # 【必须用超级用户跑迁移】V1 里有 CREATE EXTENSION / CREATE ROLE，
+      # V2 要 ENABLE ROW LEVEL SECURITY 和重建策略，V3 要建索引 ——
+      # 这些都要求表属主权限，用应用账号 app_rw 跑会直接失败，表现为应用起不来。
+      # 开发环境也是这么配的（见 application-dev.yml 的 flyway 段）。
+      SPRING_FLYWAY_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      SPRING_FLYWAY_USER: ${DB_SUPERUSER}
+      SPRING_FLYWAY_PASSWORD: ${DB_SUPERUSER_PASSWORD}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # 数据加密密钥：与数据库分离存放，务必单独备份，丢失后手机号不可恢复
+      APP_CRYPTO_DATA_KEY: ${APP_CRYPTO_DATA_KEY}
+      APP_CRYPTO_HASH_PEPPER: ${APP_CRYPTO_HASH_PEPPER}
+      # JWT 签名密钥：必须显式注入。
+      # 代码里的默认值是开发用的固定串（写在 application.yml 里），
+      # 如果生产环境漏配这一项，任何人都能用公开的默认密钥伪造令牌登录系统。
+      APP_JWT_SECRET: ${APP_JWT_SECRET:?APP_JWT_SECRET must be set}
+      # 小程序与公众号配置（未启用时留空）
+      APP_WECHAT_MP_APPID: ${WECHAT_MP_APPID:-}
+      APP_WECHAT_MP_SECRET: ${WECHAT_MP_SECRET:-}
+      APP_WECHAT_OA_APPID: ${WECHAT_OA_APPID:-}
+      APP_WECHAT_OA_SECRET: ${WECHAT_OA_SECRET:-}
+      JAVA_OPTS: >-
+        -Xms256m -Xmx512m
+        -XX:MaxMetaspaceSize=192m
+        -XX:+UseG1GC
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/app/logs
+        -Duser.timezone=Asia/Shanghai
+        -Dfile.encoding=UTF-8
+    volumes:
+      - applogs:/app/logs
+    # 不对宿主机暴露，只让 nginx 访问
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    logging: *default-logging
+    networks: [backend]
+
+  # ---------------------------------------------------------------- 反向代理
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: followup-nginx
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_started
+    environment:
+      TZ: Asia/Shanghai
+      SERVER_NAME: ${SERVER_NAME}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx/www:/var/www/certbot:ro
+      - nginxlog:/var/log/nginx
+    logging: *default-logging
+    networks: [backend]
+
+  # ---------------------------------------------------------------- 每日备份
+  backup:
+    image: postgres:16.10-alpine
+    container_name: followup-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${DB_NAME}
+      PGUSER: ${DB_SUPERUSER}
+      PGPASSWORD: ${DB_SUPERUSER_PASSWORD}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-30}
+    volumes:
+      - ./backup:/backup
+      - ./scripts:/scripts:ro
+    entrypoint: ["/bin/sh", "/scripts/backup-loop.sh"]
+    logging: *default-logging
+    networks: [backend]
+
+volumes:
+  pgdata:
+  redisdata:
+  applogs:
+  nginxlog:
+
+networks:
+  backend:
+    driver: bridge

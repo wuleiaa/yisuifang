@@ -1,0 +1,23 @@
+# =============================================================================
+#  随访系统 · HTTPS 补丁（叠加在 docker-compose.yml 之上）
+#
+#  为什么用 override 而不是直接改 docker-compose.yml：
+#    这个文件是"增量"的，docker compose 会自动把它和 docker-compose.yml 合并。
+#    好处是原文件一个字都不用动，想撤销 HTTPS 只要删掉本文件 + 重启 nginx，
+#    而且以后 docker-compose.yml 本身有更新也不会冲突。
+#
+#  合并后 nginx 服务多出三样东西：
+#    - 对外发布 443 端口
+#    - ./nginx/letsencrypt → /etc/letsencrypt（证书，由 certbot 容器写入）
+#    - ./nginx/www        → /var/www/certbot（证书校验目录）
+#  配置文件仍然是 docker-compose.yml 里写的那一个：./nginx/followup.conf
+#  （由 https/install-https.sh 在 HTTP 引导版和 HTTPS 正式版之间切换）
+# =============================================================================
+
+services:
+  nginx:
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx/letsencrypt:/etc/letsencrypt:ro
+      - ./nginx/www:/var/www/certbot:ro

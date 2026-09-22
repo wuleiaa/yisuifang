@@ -1,0 +1,16 @@
+# 统一换行符为 LF。
+# 理由：仓库里有要拿到 Linux 服务器上执行的脚本（deploy/demo/https/*.sh、
+# deploy/scripts/*.sh）。Windows 上如果被 git 转成 CRLF，脚本在服务器上会报
+# `bad interpreter: /bin/bash^M` 这类错，而且很难一眼看出来。
+* text=auto eol=lf
+
+# 二进制文件不要做任何转换
+*.jar binary
+*.zip binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary

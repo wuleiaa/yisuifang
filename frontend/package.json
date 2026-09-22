@@ -1,0 +1,25 @@
+{
+  "name": "hospital-followup-staff",
+  "version": "1.0.0",
+  "private": true,
+  "description": "医院随访管理系统 - 医护端",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "dev:patient": "vite --config vite.patient.config.js",
+    "build:patient": "vite build --config vite.patient.config.js",
+    "dev:admin": "vite --config vite.admin.config.js",
+    "build:admin": "vite build --config vite.admin.config.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.0.7"
+  }
+}
