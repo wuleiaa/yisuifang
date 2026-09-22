@@ -108,17 +108,41 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\loop-guard.ps1 `
 
 ---
 
-## 5. 这个目录没有 git
+## 5. 版本控制与推送纪律
 
-`git status` / `git log` 在这里会直接报错（已实测：`fatal: not a git repository`），
-所以 QA 提示词里"第 0 步先记基线 git status"**是执行不了的**——这正是
-测试智能体每轮只能全量重测、主智能体证明不了"我改好了"的原因。
+**2026-09-22 21:12 起这个目录已经是 git 仓库**（基线提交 `de319c4`）。
+在这之前它不是，`git status` 会直接报 `fatal: not a git repository`，
+那正是"测试智能体每轮只能全量重测、主智能体证明不了自己改好了"的根源。
 
-替代做法：`.\tools\loop-guard.ps1 -Action fingerprint -Feature "<功能名>"` 给出稳定指纹，
-并据此判断"这轮是否真的改了代码"。
+现在：
 
-是否 `git init` 由用户决定（一条命令，可回滚）。在那之前，不要假设有版本控制可用，
-也不要依赖"反正能 checkout 回来"来做危险改动。
+- `git status` / `git log` 可以正常用，改动清单以此为准。
+- 流水线判断"这轮是否真的改了代码"仍以
+  `.\tools\loop-guard.ps1 -Action fingerprint -Feature "<功能名>"` 为准——
+  它比 `git status` 更抗干扰（`.md` 不计入，所以改文档不能解锁复测）。
+- **不要用 `git reset --hard` / `git checkout --` 丢弃工作区**：这里可能同时有别的
+  会话的未提交成果。要回退先问用户。
+- 新会话开工时如果发现指纹与 `docs\项目归档与交接总览.md` 记的不一样，
+  先用 `git log --oneline -5` + `git status` 查清是谁、改了什么，再决定要不要重测。
+
+### 5.1 推送前必过密钥检查（2026-09-22 新增）
+
+待办 C11 要用 GitHub CI 构建安卓包，那一步必然把仓库推上去。推之前：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\secret-scan.ps1
+```
+
+- 退出码 **0 = 干净**；**2 = 发现明文密钥，禁止推送**。
+- 已经装好 push 钩子（`git config core.hooksPath tools/git-hooks`）：
+  带密钥的 `git push` 会被**物理拦下**，不靠谁记得。要绕过只能显式写
+  `SKIP_SECRET_SCAN=1 git push ...`，并在回执里说明为什么。
+- 判定口径：只对配置文件（yml / env / properties / …）判"密钥名 = 明文值"。
+  源码里的 `this.passwordEncoder = passwordEncoder;`、`newPassword === confirm`
+  这类代码不报；测试脚本里的临时口令降级为警告——这是**刻意的取舍**，写在
+  `tools\secret-scan.ps1` 的注释里，不是漏判。
+- 真实口令只放 `deploy/.env`（已被 `.gitignore` 忽略）。
+  **永远不要把口令写进仓库**，git 历史是删不掉的。
 
 ---
 
@@ -133,3 +157,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\loop-guard.ps1 `
 
 因此：动手前先 `-Action begin`，如果返回"另一个轮次仍未闭合"，**先停下来搞清楚
 是不是有别的会话在同一目录里工作**，而不是接着写。
+
+> **2026-09-22 21:30 更正**：那次 `PortalAuthService.java` 的改动事后查明是**正当的
+> 安全加固**（改密失败的审计改为独立事务，见《安全加固-2026-09-22》），不是野改动。
+> 真正的教训不是"有人在乱改"，而是**当时没有台账，无法区分"正当改动"和"乱改"**——
+> 唯一能看到的信号（文件时间戳 + 后端反复重启）恰好也是死循环的样子。
+> 这就是这套 `begin` / `end` 记账存在的意义。

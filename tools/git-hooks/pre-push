@@ -1,0 +1,50 @@
+#!/bin/sh
+# pre-push gate: refuse to push commits that carry live credentials.
+#
+# Why: this repository is planned to be pushed to GitHub for the Android CI
+# build (todo C11). A credential that reaches a public history is very hard to
+# take back, so the check runs automatically at the last possible moment.
+#
+# Install (once per clone):   git config core.hooksPath tools/git-hooks
+# Manual run:                 .\tools\secret-scan.ps1
+# Deliberate bypass:          SKIP_SECRET_SCAN=1 git push ...
+#
+# Kept in the repo rather than in .git/hooks so it is versioned and reviewable.
+# This file must stay pure ASCII and LF-only.
+
+if [ "$SKIP_SECRET_SCAN" = "1" ]; then
+  echo "secret-scan: bypassed (SKIP_SECRET_SCAN=1)"
+  exit 0
+fi
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+SCAN="$ROOT/tools/secret-scan.ps1"
+
+# Never block a push just because the scanner is missing on this branch.
+if [ ! -f "$SCAN" ]; then
+  exit 0
+fi
+
+if command -v powershell >/dev/null 2>&1; then
+  PS=powershell
+elif command -v pwsh >/dev/null 2>&1; then
+  PS=pwsh
+else
+  echo "secret-scan: no PowerShell available, skipping this gate."
+  exit 0
+fi
+
+"$PS" -NoProfile -ExecutionPolicy Bypass -File "$SCAN" -Mode tracked
+STATUS=$?
+
+if [ "$STATUS" -ne 0 ]; then
+  echo ""
+  echo "  PUSH BLOCKED by tools/git-hooks/pre-push"
+  echo "  A likely live credential is present in the files you are about to push."
+  echo "  Move the value into deploy/.env (git-ignored) and push again."
+  echo "  Deliberate bypass: SKIP_SECRET_SCAN=1 git push ..."
+  echo ""
+  exit 1
+fi
+
+exit 0
