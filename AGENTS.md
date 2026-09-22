@@ -98,9 +98,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\loop-guard.ps1 `
 - 起服务前先确认端口是否已在监听，不要重复 `npm run dev`。
 - 一轮跑完、或收工前：`.\tools\backend-stop.ps1`、`.\tools\db-stop.ps1`，
   并确认 5173–5175 已释放。
-- 压测、走查产物写进 `output/`。`dist-deploy/` 目前 274 MB（含 68 MB 的
-  `followup-demo.zip`、61 MB 的 `followup-fix2.zip`），只保留最近两个补丁包；
-  删除或归档前先问用户。
+- 压测、走查产物写进 `output/`。`dist-deploy/` 已于 2026-09-22 清理到 **1.47 MB**
+  （删掉了 68 MB 的 `followup-demo.zip`、61 MB 的 `followup-fix2.zip` 及两个解包目录），
+  现在只留几个几十 KB 的补丁包与 `followup-https1.zip` 作为取证材料。
+  以后新增补丁包同样只保留最近两三个，**删除或归档前先问用户**。
 - `.ps1` 脚本**必须纯 ASCII**（PowerShell 5.1 按 GBK 解码无 BOM 文件，中文注释会毁掉解析）。
   本项目已有 `tools\loop-guard.ps1` 遵守这条。
 - 不要用系统默认 `java` / `mvn` 直接构建，走 `tools\backend-*.ps1`（锁 JDK 21）。
