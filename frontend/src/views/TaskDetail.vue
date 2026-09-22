@@ -47,6 +47,9 @@ const urgentVisible = ref(false)
 const urgentSymptom = ref('')
 const submitted = ref(false)
 
+/** 连点两下会申请两次号码、写两条审计，这里挡一下 */
+const dialing = ref(false)
+
 const isAbnormal = computed(
   () => form.value.symptoms.some((s) => DANGER.includes(s)) || form.value.recoveryLevel === 'ABNORMAL'
 )
@@ -116,6 +119,16 @@ function useTemplate(text) {
   form.value.conclusion = form.value.conclusion
     ? `${form.value.conclusion}${text}`
     : text
+}
+
+async function onDial() {
+  if (dialing.value || !detail.value) return
+  dialing.value = true
+  try {
+    await callPhone(taskId, detail.value.phoneMask)
+  } finally {
+    dialing.value = false
+  }
 }
 
 async function submit(notifyDoctor) {
@@ -210,7 +223,13 @@ onMounted(load)
 
       <!-- 联系与拨号 -->
       <div class="m14" style="display: flex; gap: 10px">
-        <button class="btn-primary" style="flex: 1; padding: 14px" type="button" @click="callPhone(detail.phoneMask)">
+        <button
+          class="btn-primary"
+          style="flex: 1; padding: 14px"
+          type="button"
+          :disabled="dialing"
+          @click="onDial"
+        >
           <svg viewBox="0 0 24 24" style="width:17px;height:17px;margin-right:6px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px">
             <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2z" />
           </svg>

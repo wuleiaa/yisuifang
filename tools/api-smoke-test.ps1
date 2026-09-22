@@ -5,6 +5,8 @@
 #  break silently:
 #    * row level security (nurse / doctor / head nurse see different rows)
 #    * phone number masking (no raw phone number ever leaves the API)
+#      ... except the one-tap dial endpoint, which exists precisely to hand a
+#      real number to the phone dialer - and it must leave an audit row
 #    * audit trail (claim + complete both leave a task log row)
 #
 #  IMPORTANT: keep this file ASCII-only.
@@ -340,9 +342,70 @@ $rls = Test-Step 'RLS: doctor / nurse / head nurse see different rows' {
 }
 
 # -----------------------------------------------------------------------------
-# 5. audit trail
+# 5. one-tap dial (C8)
+#
+#    The page only ever shows the masked number, so the dial button has to ask
+#    the backend for a real one. Two guarantees matter:
+#      a. the real number does come back - otherwise tel: can never work and the
+#         button is just a toast (that was the bug);
+#      b. it comes back ONLY from here: the normal detail payload keeps the mask,
+#         and every single dial leaves an audit row (who / when / whose number).
 # -----------------------------------------------------------------------------
-Write-Head '5. Audit trail'
+Write-Head '5. One-tap dial'
+
+$script:dialedPhone = $null
+
+Test-Step 'POST /api/tasks/{id}/dial returns a dialable number' {
+    Assert-True ($null -ne $taskId) 'no task id available'
+    $info = Invoke-Api -Method Post -Path "/api/tasks/$taskId/dial" -Headers $script:doctorHeaders
+    $script:dialedPhone = $info.phone
+    Assert-True ($null -ne $info.phone) 'dial returned no phone'
+    Assert-True ($info.phone -match '^\d{11}$') "dial phone is not an 11 digit number: $($info.phone)"
+    Assert-True ($info.phoneMask -match '^\d{3}\*{4}\d{4}$') "dial phoneMask looks wrong: $($info.phoneMask)"
+    Write-Host ("        phone ****{0} / mask {1}" -f $info.phone.Substring(7), $info.phoneMask) -ForegroundColor DarkGray
+    return $info
+} | Out-Null
+
+Test-Step 'task detail still ships the masked number only' {
+    Assert-True ($null -ne $script:dialedPhone) 'the dial step did not run'
+    $json = (Invoke-Api -Method Get -Path "/api/tasks/$taskId" -Headers $script:doctorHeaders) |
+        ConvertTo-Json -Depth 6 -Compress
+    Assert-True ($json -match '\*{4}') 'task detail no longer carries the masked number'
+    Assert-True ($json -notmatch [regex]::Escape($script:dialedPhone)) 'task detail leaked the full phone number'
+    return $null
+} | Out-Null
+
+Test-Step 'POST /api/tasks/{id}/dial without a token -> 401' {
+    try {
+        Invoke-RestMethod -Uri "$BaseUrl/api/tasks/$taskId/dial" -Method Post -TimeoutSec 10 | Out-Null
+        throw 'expected 401 but the call succeeded'
+    } catch {
+        $status = $null
+        if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+        Assert-True ($status -eq 401 -or $status -eq 403) "expected 401/403, got $status"
+    }
+    return $null
+} | Out-Null
+
+Test-Step 'dial is written to audit_log (who / when / whose number)' {
+    if (-not $script:LocalDevDbUp) {
+        Write-Host '        needs the local dev db (127.0.0.1:55432 is down)' -ForegroundColor DarkGray
+        Write-Host '        -> against a deployed URL, verify this on that server database' -ForegroundColor DarkGray
+        $script:SkipPending = $true
+        return $null
+    }
+    $rows = & D:\devtools\pgtool\pgsql\bin\psql.exe -h 127.0.0.1 -p 55432 -U postgres -d followup_dev -t -A `
+        -c "select count(*) from audit_log where action = 'PATIENT_PHONE_DIAL';" 2>&1
+    Assert-True ($LASTEXITCODE -eq 0) "psql failed: $rows"
+    Assert-True ([int]$rows -ge 1) 'the dial action left no audit row'
+    Write-Host ("        PATIENT_PHONE_DIAL audit rows: {0}" -f $rows.Trim()) -ForegroundColor DarkGray
+    return $rows
+} | Out-Null
+
+# -----------------------------------------------------------------------------
+# 6. audit trail
+# -----------------------------------------------------------------------------
+Write-Head '6. Audit trail'
 
 Test-Step 'task log keeps claim / complete history' {
     if (-not $script:LocalDevDbUp) {

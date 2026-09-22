@@ -107,6 +107,7 @@ await step('wrong password is rejected', async () => {
 })
 
 let taskId = null
+let dialedPhone = null
 
 await step('login as doctor D0231 and load the todo list', async () => {
   await login(page, 'D0231')
@@ -155,6 +156,82 @@ await step('nurse opening the same task sees the lock warning', async () => {
   await nurse.getByText('正在被其他同事处理').waitFor({ timeout: 15000 })
   await nurse.screenshot({ path: path.join(shotDir, 'staff-04-lock-warning.png'), fullPage: true })
   await nurse.context().close()
+})
+
+await step('one-tap dial asks the backend and never renders the digits', async () => {
+  const dialBtn = page.locator('button.btn-primary', { hasText: '一键拨号' }).first()
+  const [resp] = await Promise.all([
+    page.waitForResponse(
+      (r) => /\/api\/tasks\/\d+\/dial$/.test(r.url()) && r.request().method() === 'POST',
+      { timeout: 15000 }
+    ),
+    dialBtn.click()
+  ])
+  assert(resp.status() === 200, `dial returned http ${resp.status()}`)
+  const body = await resp.json()
+  assert(body.code === 0, `dial failed: code=${body.code} ${body.message}`)
+
+  dialedPhone = body.data.phone
+  assert(/^\d{11}$/.test(dialedPhone), `dial did not return a real number: ${dialedPhone}`)
+  assert(/^\d{3}\*{4}\d{4}$/.test(body.data.phoneMask), `unexpected mask: ${body.data.phoneMask}`)
+
+  // Privacy rule: only the dialer may see the real number. If it ever shows up
+  // in the page text, the masking policy has been broken by this feature.
+  const text = await page.locator('body').innerText()
+  assert(!text.includes(dialedPhone), 'the full phone number was rendered on the page')
+  assert(text.includes(body.data.phoneMask), 'the masked number disappeared from the page')
+
+  // Desktop Chromium cannot hand off tel:, so the UI has to say so instead of
+  // pretending the call started (that was the old bug: a toast and nothing else).
+  const toast = page.locator('.toast')
+  await toast.waitFor({ timeout: 10000 })
+  const toastText = await toast.innerText()
+  assert(/桌面浏览器|手机/.test(toastText), `unexpected desktop dial toast: ${toastText}`)
+  await shot('staff-09-dial-desktop')
+})
+
+await step('on a phone the digits really reach tel:', async () => {
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 3,
+    locale: 'zh-CN',
+    hasTouch: true,
+    userAgent:
+      'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36'
+  })
+  const m = await ctx.newPage()
+  m.on('pageerror', (e) => jsErrors.push(e.message))
+
+  // tel: is an external protocol, so Playwright never sees it as a network
+  // request. Record the hand-off at the anchor instead - that is exactly what
+  // the OS dialer would receive.
+  await m.addInitScript(() => {
+    window.__telHandoffs = []
+    const click = HTMLAnchorElement.prototype.click
+    HTMLAnchorElement.prototype.click = function () {
+      if (this.href && this.href.startsWith('tel:')) window.__telHandoffs.push(this.href)
+      return click.apply(this, arguments)
+    }
+  })
+
+  await login(m, 'D0231')
+  await m.goto(`${BASE}/#/task/${taskId}`, { waitUntil: 'networkidle' })
+  const dialBtn = m.locator('button.btn-primary', { hasText: '一键拨号' }).first()
+  await dialBtn.waitFor({ timeout: 15000 })
+  await dialBtn.click()
+  await m.waitForTimeout(1500)
+
+  const handoffs = await m.evaluate(() => window.__telHandoffs)
+  assert(
+    handoffs.length === 1,
+    `expected exactly one tel: hand-off, got ${JSON.stringify(handoffs)}`
+  )
+  assert(handoffs[0] === `tel:${dialedPhone}`, `tel: url mismatch: ${handoffs[0]}`)
+
+  const mobileText = await m.locator('body').innerText()
+  assert(!mobileText.includes(dialedPhone), 'the full phone number was rendered on the mobile page')
+  await m.screenshot({ path: path.join(shotDir, 'staff-10-dial-mobile.png'), fullPage: true })
+  await ctx.close()
 })
 
 await step('fill the follow-up form with one tap on a phrase template', async () => {

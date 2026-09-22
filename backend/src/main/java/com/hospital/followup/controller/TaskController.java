@@ -39,10 +39,20 @@ public class TaskController {
         return ApiResponse.ok(taskService.claim(id));
     }
 
+    /**
+     * 一键拨号：取回可拨号码用于调用系统拨号器。
+     *
+     * 用 POST 而不是 GET：这是一次"解密并留痕"的动作，不能被浏览器预取/缓存，
+     * 每次点击都必须真的写一条审计。
+     */
+    @PostMapping("/{id}/dial")
+    public ApiResponse<TaskDtos.DialPhone> dial(@PathVariable Long id) {
+        return ApiResponse.ok(taskService.dial(id));
+    }
+
     @PostMapping("/complete")
     public ApiResponse<TaskDtos.CompleteTaskResponse> complete(
             @Valid @RequestBody TaskDtos.CompleteTaskRequest req) {
         return ApiResponse.ok(taskService.complete(req));
     }
 }
-

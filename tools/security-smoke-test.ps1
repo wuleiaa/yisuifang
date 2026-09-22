@@ -212,6 +212,15 @@ Test-Step 'blocked on the admin endpoints (403 / 41005)' {
     return $r
 } | Out-Null
 
+Test-Step 'blocked on the one-tap dial endpoint (403 / 41005)' {
+    # C8 added POST /api/tasks/{id}/dial, which hands out a real phone number.
+    # The must-change-password gate is an allow-list, so a new endpoint is
+    # covered automatically - prove it rather than assume it.
+    $r = Invoke-Raw -Method Post -Path '/api/tasks/1/dial' -Headers $script:temp.Headers
+    Assert-True ($r.http -eq 403 -and $r.code -eq 41005) "got http=$($r.http) code=$($r.code)"
+    return $r
+} | Out-Null
+
 Test-Step 'still allowed on /api/auth/me' {
     $r = Invoke-Raw -Method Get -Path '/api/auth/me' -Headers $script:temp.Headers
     Assert-True ($r.code -eq 0) "me failed: http=$($r.http) code=$($r.code)"

@@ -2,6 +2,7 @@ package com.hospital.followup.service;
 
 import com.hospital.followup.common.BusinessException;
 import com.hospital.followup.common.ErrorCode;
+import com.hospital.followup.crypto.CryptoService;
 import com.hospital.followup.domain.Encounter;
 import com.hospital.followup.domain.FollowupPlan;
 import com.hospital.followup.domain.FollowupRecord;
@@ -55,6 +56,8 @@ public class TaskService {
     private final DiagnosisRepository diagnosisRepository;
     private final MedicalProcedureRepository procedureRepository;
     private final RlsSession rlsSession;
+    private final CryptoService cryptoService;
+    private final AuditLogService auditLogService;
 
     @PersistenceContext
     private EntityManager em;
@@ -67,7 +70,9 @@ public class TaskService {
                        EncounterRepository encounterRepository,
                        DiagnosisRepository diagnosisRepository,
                        MedicalProcedureRepository procedureRepository,
-                       RlsSession rlsSession) {
+                       RlsSession rlsSession,
+                       CryptoService cryptoService,
+                       AuditLogService auditLogService) {
         this.taskRepository = taskRepository;
         this.taskLogRepository = taskLogRepository;
         this.recordRepository = recordRepository;
@@ -77,6 +82,8 @@ public class TaskService {
         this.diagnosisRepository = diagnosisRepository;
         this.procedureRepository = procedureRepository;
         this.rlsSession = rlsSession;
+        this.cryptoService = cryptoService;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -180,6 +187,53 @@ public class TaskService {
                 proc == null ? null : proc.getProcedureName(),
                 proc == null ? null : proc.getProcedureDate(),
                 locked, t.getLockedBy(), t.getLockedAt());
+    }
+
+    /**
+     * 一键拨号：返回可交给系统拨号器的完整号码。
+     *
+     * 【为什么这里必须解密】
+     *  界面上展示的永远是 phone_mask（138****5678），而 tel: 需要真实号码——
+     *  只拿脱敏值去拨号就是"点了没反应"，这正是 C8 要修的问题。
+     *
+     * 【和"查看完整号码"的区别（docs/第08轮 3.5 定稿）】
+     *  一键拨号：不需要二次验证，但**每次都要留痕**——号码只交给拨号器，
+     *            不回显到页面，所以护士看不到完整号码，只发生一次"呼出"。
+     *  查看完整号码：要把号码显示给人看，门槛更高（二次验证 + 审计），
+     *            那条策略本轮不动。
+     *
+     * 【权限】可见性由两道门保证：taskRepository / patientRepository 的查询走
+     *  RLS（越权直接查不到，报 404），此处再要求 phone:view 权限点。
+     */
+    @Transactional
+    public TaskDtos.DialPhone dial(Long taskId) {
+        rlsSession.apply();
+        CurrentUser.Principal me = CurrentUser.require();
+
+        if (!me.hasPermission("patient:phone:view")) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "没有拨打电话的权限");
+        }
+
+        FollowupTask t = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "任务不存在或您无权查看"));
+
+        Patient p = patientRepository.findById(t.getPatientId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "患者不存在或您无权查看"));
+
+        String phone = cryptoService.decrypt(p.getPhoneCipher());
+        if (phone == null || phone.isBlank()) {
+            // 失败也要留痕：审计最常见的用途恰恰是记录"没成功的操作"
+            auditLogService.record(null, me.staffId(), p.getId(), "PATIENT_PHONE_DIAL",
+                    "patient", String.valueOf(p.getId()), "FAIL",
+                    AuditLogService.noteJson("taskId=" + taskId + " 患者未登记联系电话"));
+            throw new BusinessException(ErrorCode.NOT_FOUND, "该患者没有登记联系电话");
+        }
+
+        auditLogService.record(null, me.staffId(), p.getId(), "PATIENT_PHONE_DIAL",
+                "patient", String.valueOf(p.getId()), "SUCCESS",
+                AuditLogService.noteJson("taskId=" + taskId));
+
+        return new TaskDtos.DialPhone(p.getPhoneMask(), phone);
     }
 
     /**

@@ -122,6 +122,8 @@ export const api = {
     client.get('/tasks/todo', { params: { scope, days, limit } }),
   taskDetail: (id) => client.get(`/tasks/${id}`),
   claimTask: (id) => client.post(`/tasks/${id}/claim`),
+  // 一键拨号：后端解密并写审计，只把号码交给系统拨号器，不要渲染到页面上
+  dialTask: (id) => client.post(`/tasks/${id}/dial`),
   completeTask: (payload) => client.post('/tasks/complete', payload),
 
   patients: (keyword, limit = 50) =>

@@ -85,6 +85,19 @@ public final class TaskDtos {
     ) {
     }
 
+    /**
+     * 一键拨号：交给系统拨号器的号码。
+     *
+     * 界面展示永远用 phoneMask（脱敏），phone 只由前端直接送给拨号器，
+     * 不得渲染到页面上——"查看完整号码"另有一条需要二次验证的路径，
+     * 两者的门槛刻意不同（见 docs/第08轮-界面与交互定稿.md 3.5）。
+     */
+    public record DialPhone(
+            String phoneMask,
+            String phone
+    ) {
+    }
+
     public record CompleteTaskRequest(
             @NotNull(message = "缺少任务编号")
             Long taskId,
@@ -114,4 +127,3 @@ public final class TaskDtos {
     ) {
     }
 }
-
