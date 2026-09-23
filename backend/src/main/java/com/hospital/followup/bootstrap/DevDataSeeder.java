@@ -460,7 +460,9 @@ public class DevDataSeeder implements ApplicationRunner {
                                 'BL20260915-001', '结肠息肉（乙状结肠）', current_date,
                                 '管状腺瘤，低级别上皮内瘤变，切缘阴性。',
                                 'ATTENTION', 'PENDING_REVIEW', 1, false,
-                                :doc, now(), :doc, now())
+                                -- 审核时间刻意比录入晚 6 小时 12 分：质控看板要看"病理审核
+                                -- 时长"，两边都写 now() 会让看板永远显示 0 h，像坏了一样。
+                                :doc, now(), :doc, now() + interval '6 hours 12 minutes')
                         returning id
                         """)
                 .setParameter("pid", chenFang)

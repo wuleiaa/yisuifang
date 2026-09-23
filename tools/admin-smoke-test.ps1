@@ -327,6 +327,100 @@ Test-Step 'login attempts are logged (login_log)' {
     return $n
 } | Out-Null
 
+# -----------------------------------------------------------------------------
+# 8. QC dashboard (C13)
+#
+#    The dashboard is nothing but task/record aggregates, which makes it the
+#    place where the 2026-09-23 RLS bug is visible: AdminService never set the
+#    RLS session variables, so every followup_task row was filtered out and the
+#    overview reported "0 pending / 0 overdue" while the database had 10.
+#    The steps below compare the API with the database (local run) and, on any
+#    deployment, require the numbers to move after a real call.
+# -----------------------------------------------------------------------------
+Write-Head '8. QC dashboard'
+
+# Keep this file ASCII-only, so build the Chinese symptom text from code points
+# (0x5455 = "ou", 0x8840 = "xue" -> the danger symptom spelling "hematemesis").
+$script:dangerSymptom = [string][char]0x5455 + [char]0x8840
+
+$script:qc = $null
+
+$script:qc = Test-Step 'GET /api/admin/qc returns the dashboard' {
+    $q = Invoke-Api -Method Get -Path '/api/admin/qc' -Headers $script:admin.Headers
+    Assert-True ($null -ne $q.month) 'qc returned no month'
+    Assert-True ($q.completionRate -ge 0 -and $q.completionRate -le 100) "completionRate out of range: $($q.completionRate)"
+    Assert-True ($q.openTotal -ge $q.overdueOpen) "overdue ($($q.overdueOpen)) > open ($($q.openTotal))"
+    Assert-True ($null -ne $q.doctors) 'qc returned no doctors array'
+    Write-Host ("        {0}: total={1} done={2} rate={3}% open={4} overdue={5} pathologyHours={6}" -f `
+        $q.month, $q.monthTotal, $q.monthDone, $q.completionRate,
+        $q.openTotal, $q.overdueOpen, $q.pathologyAvgHours) -ForegroundColor DarkGray
+    return $q
+}
+
+Test-Step 'dashboard numbers match the database (RLS regression guard)' {
+    if (-not $script:LocalDevDbUp) {
+        Write-Host '        needs the local dev db - against a deployment the next step proves it' -ForegroundColor DarkGray
+        $script:SkipPending = $true
+        return $null
+    }
+    Assert-True ($null -ne $script:qc) 'the qc step did not run'
+
+    $open = [int](& D:\devtools\pgtool\pgsql\bin\psql.exe -h 127.0.0.1 -p 55432 -U postgres -d followup_dev -t -A `
+        -c "select count(*) from followup_task where deleted_at is null and status in ('PENDING','DOING');")
+    $overdue = [int](& D:\devtools\pgtool\pgsql\bin\psql.exe -h 127.0.0.1 -p 55432 -U postgres -d followup_dev -t -A `
+        -c "select count(*) from followup_task where deleted_at is null and status in ('PENDING','DOING') and due_date < current_date;")
+
+    Assert-True ($script:qc.openTotal -eq $open) `
+        "api openTotal=$($script:qc.openTotal) but the db has $open (row level security silently filtering?)"
+    Assert-True ($script:qc.overdueOpen -eq $overdue) `
+        "api overdueOpen=$($script:qc.overdueOpen) but the db has $overdue"
+
+    $ov = Invoke-Api -Method Get -Path '/api/admin/overview' -Headers $script:admin.Headers
+    Assert-True ($ov.pendingTask -eq $open) "overview pendingTask=$($ov.pendingTask) but the db has $open"
+    Assert-True ($ov.overdueTask -eq $overdue) "overview overdueTask=$($ov.overdueTask) but the db has $overdue"
+
+    Write-Host ("        api == db: open={0} overdue={1}" -f $open, $overdue) -ForegroundColor DarkGray
+    return $null
+} | Out-Null
+
+Test-Step 'a danger symptom shows up as an abnormal event' {
+    $doc = Connect-Staff $DoctorNo $DoctorPassword
+    $todo = Invoke-Api -Method Get -Path '/api/tasks/todo?scope=MINE&days=30&limit=100' -Headers $doc.Headers
+    Assert-True ($todo.total -ge 1) "doctor has no todo to report on (total=$($todo.total))"
+    $task = $todo.items[0]
+
+    Invoke-Api -Method Post -Path "/api/tasks/$($task.id)/claim" -Headers $doc.Headers | Out-Null
+    Invoke-Api -Method Post -Path '/api/tasks/complete' -Headers $doc.Headers -Body @{
+        taskId                 = [int]$task.id
+        contacted              = $true
+        symptoms               = @($script:dangerSymptom)
+        recoveryLevel          = 'ABNORMAL'
+        conclusion             = 'qc smoke: danger symptom reported'
+        advice                 = 'go to the emergency department'
+        nextAction             = 'ESCALATE'
+        notifyDoctorImmediately = $true
+    } | Out-Null
+
+    $q = Invoke-Api -Method Get -Path '/api/admin/qc' -Headers $script:admin.Headers
+    $hit = @($q.abnormalEvents | Where-Object { $_.patientId -eq $task.patientId })
+    Assert-True ($hit.Count -ge 1) 'the abnormal event is missing from the QC dashboard'
+    Assert-True ("$($hit[0].symptomText)" -match $script:dangerSymptom) `
+        "symptom text looks wrong: $($hit[0].symptomText)"
+    Assert-True ($hit[0].escalated -eq $true) 'the escalated flag was not set'
+    Assert-True ($q.monthDone -ge 1) `
+        "monthDone did not move after a real call ($($q.monthDone)) - row level security again?"
+    Write-Host ("        {0} / {1} / escalated={2}" -f `
+        $hit[0].patientName, $hit[0].symptomText, $hit[0].escalated) -ForegroundColor DarkGray
+    return $hit
+} | Out-Null
+
+Test-Step 'plain doctor cannot read the QC dashboard' {
+    $doc = Connect-Staff $DoctorNo $DoctorPassword
+    $r = Invoke-Api -Method Get -Path '/api/admin/qc' -Headers $doc.Headers -Raw
+    Assert-True ($r.httpStatus -eq 403 -or $r.code -eq 40300) "expected 403, got http=$($r.httpStatus) code=$($r.code)"
+    return $null
+} | Out-Null
+
 Write-Head 'Summary'
 Write-Host ("  steps : {0} passed, {1} failed, {2} skipped" -f $script:Pass, $script:Fail, $script:Skip)
 if ($script:Fail -gt 0) {

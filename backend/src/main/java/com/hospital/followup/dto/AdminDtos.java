@@ -123,4 +123,54 @@ public final class AdminDtos {
             OffsetDateTime createdAt
     ) {
     }
+
+    /**
+     * 质控看板（C13）：护士长/科室管理者要看的完成率、逾期与异常。
+     * 统计口径写在 AdminService.qc() 的注释里，避免"这个数字怎么算的"来回问。
+     */
+    public record QcDashboard(
+            /** 统计月份，如 2026-09 */
+            String month,
+            /** 本月应完成的随访任务数 */
+            int monthTotal,
+            /** 本月已完成 */
+            int monthDone,
+            /** 完成率百分比（0-100，整数） */
+            int completionRate,
+            /** 当前未完成（待办 + 处理中） */
+            int openTotal,
+            /** 当前已逾期未完成 */
+            int overdueOpen,
+            /** 近 30 天病理"录入→审核"平均时长（小时）；无数据时为 null */
+            Double pathologyAvgHours,
+            /** 按责任人拆分的本月完成情况 */
+            List<DoctorQc> doctors,
+            /** 近 30 天异常事件 */
+            List<AbnormalEvent> abnormalEvents
+    ) {
+    }
+
+    public record DoctorQc(
+            Long staffId,
+            String name,
+            int total,
+            int done,
+            int rate
+    ) {
+    }
+
+    /** 异常事件：回访中发现危险症状的人。护士长要能一眼看到"谁、什么时候、什么症状"。 */
+    public record AbnormalEvent(
+            Long recordId,
+            Long patientId,
+            String patientName,
+            String taskTitle,
+            OffsetDateTime executedAt,
+            String symptomText,
+            String conclusion,
+            String executedByName,
+            /** 是否已升级给医生 */
+            boolean escalated
+    ) {
+    }
 }

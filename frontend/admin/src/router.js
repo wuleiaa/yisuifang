@@ -5,6 +5,7 @@ const routes = [
   { path: '/', redirect: '/accounts' },
   { path: '/login', name: 'login', component: () => import('./views/Login.vue'), meta: { public: true } },
   { path: '/overview', name: 'overview', component: () => import('./views/Overview.vue') },
+  { path: '/quality', name: 'quality', component: () => import('./views/Quality.vue') },
   { path: '/accounts', name: 'accounts', component: () => import('./views/Accounts.vue') },
   { path: '/logins', name: 'logins', component: () => import('./views/Logins.vue') },
   { path: '/change-password', name: 'changePassword', component: () => import('./views/ChangePassword.vue') },

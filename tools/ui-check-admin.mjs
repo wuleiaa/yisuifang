@@ -178,6 +178,31 @@ await step('overview page shows numbers', async () => {
   await shot('admin-07-overview')
 })
 
+await step('QC dashboard renders rates and the per-doctor breakdown (C13)', async () => {
+  await page.locator('.nav button', { hasText: '质控看板' }).click()
+  await page.waitForURL(/#\/quality/, { timeout: 30000 })
+  await page.locator('.stat').first().waitFor({ timeout: 20000 })
+
+  const stats = await page.locator('.stat').count()
+  assert(stats >= 4, `expected at least 4 QC stats, got ${stats}`)
+  const head = await page.locator('.stats').innerText()
+  assert(/完成率/.test(head), `completion rate stat missing: ${head.slice(0, 120)}`)
+  assert(/逾期/.test(head), 'overdue stat missing')
+  assert(/病理审核/.test(head), 'pathology turnaround stat missing')
+
+  // Per-doctor completion: the demo data has to produce at least one row.
+  const rows = await page.locator('.qc-row').count()
+  assert(rows >= 1, `no per-doctor rows rendered (count=${rows})`)
+  const rowText = await page.locator('.qc-row').first().innerText()
+  assert(/\d+%/.test(rowText), `per-doctor row has no percentage: ${rowText}`)
+
+  // The statistics notes are part of the deliverable: it answers "how is this
+  // number calculated" without anyone having to ask.
+  const notes = await page.locator('.qc-notes').innerText()
+  assert(notes.length > 20, `statistics notes missing: ${notes.slice(0, 80)}`)
+  await shot('admin-09-quality')
+})
+
 await step('login records page lists attempts', async () => {
   await page.locator('.nav button', { hasText: '登录记录' }).click()
   await page.waitForURL(/#\/logins/, { timeout: 10000 })

@@ -121,6 +121,25 @@ tbody tr:last-child td { border-bottom: 0; }
 .stat.warn b { color: var(--warn); }
 .stat.danger b { color: var(--danger); }
 
+/* ---------------------------------------------------------------- 质控看板（C13） */
+.card-title { font-weight: 600; margin-bottom: 12px; }
+.muted { color: var(--ink-3); }
+
+.qc-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
+.qc-name { width: 92px; flex: 0 0 92px; font-size: 13.5px; }
+.qc-bar { flex: 1; height: 9px; border-radius: 5px; background: #eef1f5; overflow: hidden; }
+.qc-bar i { display: block; height: 100%; background: var(--brand); border-radius: 5px; }
+.qc-bar i.low { background: var(--warn); }
+.qc-num { width: 118px; flex: 0 0 118px; text-align: right; font-size: 13px; }
+
+.qc-ev { padding: 12px 0; border-top: 1px dashed var(--line); }
+.qc-ev:first-of-type { border-top: none; padding-top: 2px; }
+.qc-ev-hd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.qc-ev-msg { margin-top: 6px; font-size: 13.5px; line-height: 1.6; color: var(--ink-2); white-space: pre-wrap; }
+.qc-time { font-size: 12px; color: var(--ink-3); }
+
+.qc-notes { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13px; line-height: 1.9; }
+
 /* ---------------------------------------------------------------- 弹窗 */
 .mask { position: fixed; inset: 0; background: rgba(20, 32, 48, .45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
 .dialog { background: #fff; border-radius: 12px; width: 100%; max-width: 460px; padding: 22px; max-height: 90vh; overflow: auto; }

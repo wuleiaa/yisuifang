@@ -9,6 +9,7 @@ import com.hospital.followup.dto.AdminDtos;
 import com.hospital.followup.repository.AccountRepository;
 import com.hospital.followup.repository.StaffRepository;
 import com.hospital.followup.security.CurrentUser;
+import com.hospital.followup.security.RlsSession;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
@@ -51,6 +52,7 @@ public class AdminService {
     private final PasswordEncoder passwordEncoder;
     private final CryptoService cryptoService;
     private final AuditLogService auditLogService;
+    private final RlsSession rlsSession;
     private final SecureRandom random = new SecureRandom();
 
     @PersistenceContext
@@ -60,12 +62,14 @@ public class AdminService {
                         AccountRepository accountRepository,
                         PasswordEncoder passwordEncoder,
                         CryptoService cryptoService,
-                        AuditLogService auditLogService) {
+                        AuditLogService auditLogService,
+                        RlsSession rlsSession) {
         this.staffRepository = staffRepository;
         this.accountRepository = accountRepository;
         this.passwordEncoder = passwordEncoder;
         this.cryptoService = cryptoService;
         this.auditLogService = auditLogService;
+        this.rlsSession = rlsSession;
     }
 
     // ------------------------------------------------------------------ 权限
@@ -113,12 +117,31 @@ public class AdminService {
         return isSuperAdmin(admin.staffId()) ? null : admin.deptId();
     }
 
+    /**
+     * 统计类查询前，把 RLS 上下文设为"系统视角"。
+     *
+     * 【为什么必须做】followup_task / followup_record / patient / pathology_report
+     * 都开着行级安全，策略要求 app.is_system 或 app.is_manager 为 true 才放行。
+     * 管理后台原先没有设置这些会话变量 → 相关行被静默过滤 →
+     * **概览里的"待办/逾期"永远是 0**（2026-09-23 实测：库里 10 条待办，接口返回 0；
+     * 因为 PowerShell/curl 发的请求不影响这件事，冒烟测试只看"能不能拿到数字"，
+     * 所以这个 bug 一直没被任何测试发现）。
+     *
+     * 科室范围仍由每条 SQL 的 dept_id 过滤负责（RLS 策略本身不含科室条件），
+     * 调用权限已由 requireAdmin() 卡住。
+     */
+    private void applyAdminRls() {
+        rlsSession.applyAsSystem();
+    }
+
     // ------------------------------------------------------------------ 查询
 
     @Transactional(readOnly = true)
     public AdminDtos.Overview overview() {
         requireAdmin();
         Long deptId = scopeDeptId(CurrentUser.require());
+        // 没有这一句，下面的待办/逾期会被行级安全静默过滤成 0
+        applyAdminRls();
 
         int staffTotal = count("""
                 select count(*) from staff s where s.deleted_at is null
@@ -155,6 +178,128 @@ public class AdminService {
 
         return new AdminDtos.Overview(staffTotal, doctorCount, nurseCount, managerCount,
                 disabledCount, todayLogin, pendingTask, overdueTask);
+    }
+
+    /**
+     * 质控看板（C13）：完成率、逾期、病理审核时长、按责任人拆分、异常事件。
+     *
+     * 【统计口径】（写在这里，省得反复问"这个数字怎么算的"）
+     *  - 本月：按任务的"应完成时间" due_date 落在本月来算，而不是按提交时间——
+     *    护士长关心的是"这个月该做的做了没有"，逾期任务也算进分母。
+     *  - 完成率 = 本月已完成 / 本月应完成（四舍五入到整数百分比）。
+     *  - 逾期：当前仍未完成且 due_date 已过今天。
+     *  - 病理审核时长：近 30 天、已有 reviewed_at 的报告，"录入→审核"的平均小时数。
+     *  - 异常事件：近 30 天 is_abnormal 的回访记录（含症状与结论），最多 10 条。
+     *  - 科室范围：系统管理员全院，科室管理者仅本科室；每个查询都带 dept_id 过滤。
+     */
+    @Transactional(readOnly = true)
+    public AdminDtos.QcDashboard qc() {
+        requireAdmin();
+        CurrentUser.Principal admin = CurrentUser.require();
+        Long deptId = scopeDeptId(admin);
+        applyAdminRls();
+
+        String monthWindow = """
+                   and t.due_date >= date_trunc('month', current_date)::date
+                   and t.due_date <  (date_trunc('month', current_date) + interval '1 month')::date
+                """;
+
+        int monthTotal = count("""
+                select count(*) from followup_task t join staff s on s.id = t.assignee_staff_id
+                 where t.deleted_at is null
+                   and s.dept_id = coalesce(cast(:deptId as bigint), s.dept_id)
+                """ + monthWindow, deptId);
+
+        int monthDone = count("""
+                select count(*) from followup_task t join staff s on s.id = t.assignee_staff_id
+                 where t.deleted_at is null and t.status = 'DONE'
+                   and s.dept_id = coalesce(cast(:deptId as bigint), s.dept_id)
+                """ + monthWindow, deptId);
+
+        int openTotal = count("""
+                select count(*) from followup_task t join staff s on s.id = t.assignee_staff_id
+                 where t.deleted_at is null and t.status in ('PENDING','DOING')
+                   and s.dept_id = coalesce(cast(:deptId as bigint), s.dept_id)
+                """, deptId);
+
+        int overdueOpen = count("""
+                select count(*) from followup_task t join staff s on s.id = t.assignee_staff_id
+                 where t.deleted_at is null and t.status in ('PENDING','DOING')
+                   and t.due_date < current_date
+                   and s.dept_id = coalesce(cast(:deptId as bigint), s.dept_id)
+                """, deptId);
+
+        // 病理审核时长：没有数据就返回 null，前端显示"—"（不要用 0 冒充"很快"）
+        Double pathologyAvgHours = null;
+        Object avg = em.createNativeQuery("""
+                select round(avg(extract(epoch from (r.reviewed_at - r.entered_at)) / 3600.0)::numeric, 1)
+                  from pathology_report r join patient p on p.id = r.patient_id
+                 where r.deleted_at is null
+                   and r.entered_at is not null and r.reviewed_at is not null
+                   and r.reviewed_at >= now() - interval '30 days'
+                   and p.dept_id = coalesce(cast(:deptId as bigint), p.dept_id)
+                """).setParameter("deptId", deptId).getSingleResult();
+        if (avg != null) {
+            pathologyAvgHours = ((Number) avg).doubleValue();
+        }
+
+        List<AdminDtos.DoctorQc> doctors = new ArrayList<>();
+        @SuppressWarnings("unchecked")
+        List<Object[]> docRows = em.createNativeQuery("""
+                select s.id, s.name, count(*) as total,
+                       count(*) filter (where t.status = 'DONE') as done
+                  from followup_task t join staff s on s.id = t.assignee_staff_id
+                 where t.deleted_at is null
+                   and s.dept_id = coalesce(cast(:deptId as bigint), s.dept_id)
+                """ + monthWindow + """
+                 group by s.id, s.name
+                 order by count(*) desc, s.name
+                """).setParameter("deptId", deptId).getResultList();
+        for (Object[] row : docRows) {
+            int total = ((Number) row[2]).intValue();
+            int done = ((Number) row[3]).intValue();
+            doctors.add(new AdminDtos.DoctorQc(((Number) row[0]).longValue(),
+                    (String) row[1], total, done, rate(done, total)));
+        }
+
+        List<AdminDtos.AbnormalEvent> events = new ArrayList<>();
+        @SuppressWarnings("unchecked")
+        List<Object[]> evRows = em.createNativeQuery("""
+                select r.id, r.patient_id, p.name, tk.title, r.executed_at,
+                       (select string_agg(v, '、') from jsonb_array_elements_text(r.symptom_json) as v),
+                       r.conclusion, ex.name, (r.escalated_to is not null)
+                  from followup_record r
+                  join patient p on p.id = r.patient_id
+                  left join followup_task tk on tk.id = r.task_id
+                  left join staff ex on ex.id = r.executed_by
+                 where r.deleted_at is null and r.is_abnormal = true
+                   and r.executed_at >= now() - interval '30 days'
+                   and p.dept_id = coalesce(cast(:deptId as bigint), p.dept_id)
+                 order by r.executed_at desc
+                 limit 10
+                """).setParameter("deptId", deptId).getResultList();
+        for (Object[] row : evRows) {
+            events.add(new AdminDtos.AbnormalEvent(
+                    ((Number) row[0]).longValue(),
+                    ((Number) row[1]).longValue(),
+                    (String) row[2],
+                    (String) row[3],
+                    toOffsetDateTime(row[4]),
+                    (String) row[5],
+                    (String) row[6],
+                    (String) row[7],
+                    Boolean.TRUE.equals(row[8])));
+        }
+
+        String month = java.time.LocalDate.now().toString().substring(0, 7);
+        return new AdminDtos.QcDashboard(month, monthTotal, monthDone,
+                rate(monthDone, monthTotal), openTotal, overdueOpen,
+                pathologyAvgHours, doctors, events);
+    }
+
+    /** 百分比，分母为 0 时返回 0（不抛异常、也不显示 NaN） */
+    private static int rate(int done, int total) {
+        return total <= 0 ? 0 : (int) Math.round(done * 100.0 / total);
     }
 
     private int countRole(String roleCode, Long deptId) {

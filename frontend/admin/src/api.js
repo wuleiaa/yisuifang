@@ -117,6 +117,8 @@ export const api = {
   changePassword: (oldPassword, newPassword) =>
     client.post('/auth/change-password', { oldPassword, newPassword }),
   overview: () => client.get('/admin/overview'),
+  /** 质控看板（C13） */
+  qc: () => client.get('/admin/qc'),
   roles: () => client.get('/admin/roles'),
   staff: (params) => client.get('/admin/staff', { params }),
   logins: (params) => client.get('/admin/logins', { params }),

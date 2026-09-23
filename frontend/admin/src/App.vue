@@ -12,6 +12,7 @@ const profile = computed(() => profileRef.value)
 
 const nav = [
   { name: 'overview', label: '概览', d: 'M3 13h8V3H3zM13 21h8v-8h-8zM13 3v6h8V3zM3 21h8v-4H3z' },
+  { name: 'quality', label: '质控看板', d: 'M4 19h16M7 16V9M12 16V5M17 16v-4' },
   { name: 'accounts', label: '账号管理', d: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8M23 21v-2a4 4 0 0 0-3-3.87' },
   { name: 'logins', label: '登录记录', d: 'M12 8v4l3 2M12 3a9 9 0 1 0 9 9' },
   { name: 'changePassword', label: '修改密码', d: 'M12 15v2M6 11V8a6 6 0 0 1 12 0v3M5 11h14v10H5z' }

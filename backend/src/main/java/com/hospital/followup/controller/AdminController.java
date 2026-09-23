@@ -29,6 +29,12 @@ public class AdminController {
         return ApiResponse.ok(adminService.overview());
     }
 
+    /** 质控看板（C13）：完成率、逾期、病理审核时长、按责任人拆分、异常事件 */
+    @GetMapping("/qc")
+    public ApiResponse<AdminDtos.QcDashboard> qc() {
+        return ApiResponse.ok(adminService.qc());
+    }
+
     /**
      * 账号列表 / 查找账号。
      * keyword 支持工号、姓名、手机号脱敏值；roleCode 按角色筛；status 按启用状态筛。
