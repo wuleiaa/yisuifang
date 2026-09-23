@@ -9,3 +9,4 @@ ts	feature	stage	action	result	fingerprint	signature	note
 2026-09-23 20:47:05	C8-一键拨号真正可用	fix	end	BLOCKED	8bfdf12bd04cc323	P1-线上口令冒烟未跑	第2轮：已备份并部署到线上（jar b768f5d5、staff index-CNWWO69b.js），公网免口令复验通过（三端+health 200、ui包md5端到端一致、portal 12/12）；带口令的三套冒烟+三端走查+demo-reset 待用户口令
 2026-09-23 20:51:07	C8-一键拨号真正可用	qa	begin		8bfdf12bd04cc323		
 2026-09-23 20:52:09	C8-一键拨号真正可用	qa	end	BLOCKED	8bfdf12bd04cc323	P1-线上口令冒烟未跑	qa轮：线上用真实Chromium复验三端渲染3/3全绿（200、已挂载、0控制台错误、0明文http，截图c8-prod-*.png）；portal 12/12；ui包md5与本地一致。带口令的三套+登录后走查仍缺用户口令
+2026-09-23 21:06:41	P0-HTTPS下浏览器写请求被CORS拒绝	fix	begin		c127a7ec54fccc38		

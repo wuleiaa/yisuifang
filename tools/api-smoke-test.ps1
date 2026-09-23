@@ -224,6 +224,27 @@ Test-Step 'GET /api/auth/me without token -> 401' {
     return $null
 } | Out-Null
 
+Test-Step 'browser-style POST (Origin header) is not CORS-rejected' {
+    # Regression guard for the 2026-09-22 outage-class bug: behind the
+    # TLS-terminating nginx the app saw scheme http, while the browser sends
+    # Origin https://<domain>. The CORS filter therefore answered 403 to EVERY
+    # browser POST - the site looked fine but nobody could log in. PowerShell
+    # sends no Origin header, which is exactly why every suite stayed green
+    # while the real site was unusable. Always send an Origin now.
+    $origin = ([uri]$BaseUrl).GetLeftPart([System.UriPartial]::Authority)
+    # -UseBasicParsing is required on PowerShell 5.1: without it the cmdlet
+    # needs the IE engine, and $resp.Content comes back null.
+    $resp = Invoke-WebRequest -UseBasicParsing -Uri "$BaseUrl/api/auth/login" -Method Post -TimeoutSec 30 `
+        -ContentType 'application/json; charset=utf-8' `
+        -Headers @{ Origin = $origin; Referer = "$BaseUrl/" } `
+        -Body (@{ staffNo = 'D0231'; password = $DoctorPassword } | ConvertTo-Json -Compress)
+    Assert-True ($resp.StatusCode -eq 200) "expected 200 with Origin $origin, got $($resp.StatusCode)"
+    $payload = $resp.Content | ConvertFrom-Json
+    Assert-True ($payload.code -eq 0) "login with Origin failed: code=$($payload.code) $($payload.message)"
+    Write-Host ("        Origin {0} accepted" -f $origin) -ForegroundColor DarkGray
+    return $payload
+} | Out-Null
+
 Test-Step 'POST /api/auth/login wrong password -> rejected' {
     $resp = $null
     try {

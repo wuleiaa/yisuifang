@@ -1,6 +1,11 @@
 server:
   port: 8080
   shutdown: graceful
+  # Trust X-Forwarded-* from nginx. Without this the app still thinks it is
+  # serving plain http on the container port, so a browser request whose
+  # Origin is https://<domain> looks cross-origin to Spring -> the CORS filter
+  # rejects every POST (login included) with 403 "Invalid CORS request".
+  forward-headers-strategy: framework
   servlet:
     encoding:
       charset: UTF-8
@@ -49,6 +54,12 @@ management:
       show-details: never
 
 app:
+  cors:
+    # Origins allowed to call the API from a browser. The localhost entries are
+    # for the dev servers; the real domain must be listed here as well, because
+    # the Origin header a browser sends is not the scheme/host the container
+    # sees behind the TLS-terminating nginx.
+    allowed-origins: http://localhost:*,http://127.0.0.1:*,https://yisuifang.work,https://www.yisuifang.work
   # 数据加密密钥。生产环境务必用环境变量注入，并单独备份。
   crypto:
     data-key: ${APP_CRYPTO_DATA_KEY:dev-only-data-key-do-not-use-in-production}
@@ -70,4 +81,3 @@ logging:
   level:
     root: INFO
     com.hospital.followup: INFO
-

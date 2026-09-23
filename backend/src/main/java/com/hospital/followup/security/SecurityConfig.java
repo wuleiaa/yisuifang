@@ -5,6 +5,7 @@ import com.hospital.followup.common.ApiResponse;
 import com.hospital.followup.common.ErrorCode;
 import com.hospital.followup.repository.AccountRepository;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
@@ -27,6 +28,20 @@ import java.util.List;
 public class SecurityConfig {
 
     private final ObjectMapper objectMapper;
+
+    /**
+     * 允许从浏览器调用接口的来源。
+     *
+     * 【为什么必须可配、而且必须含真实域名】
+     * HTTPS 由 nginx 终结，容器里的应用看到的 scheme 是 http；
+     * 浏览器发来的 Origin 却是 https://<域名>。只要白名单里没有这个域名，
+     * Spring 的 CORS 过滤器就会把它当跨域请求拒掉——症状是
+     * 「页面能打开，但登录/提交全部 403、响应体 20 字节（Invalid CORS request）」。
+     * 2026-09-22 HTTPS 上线后线上正是这个状态，而 PowerShell 发的请求不带
+     * Origin，所以所有自动化测试都发现不了。默认值见 application.yml。
+     */
+    @Value("${app.cors.allowed-origins:http://localhost:*,http://127.0.0.1:*}")
+    private String allowedOriginsRaw;
 
     public SecurityConfig(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -87,8 +102,12 @@ public class SecurityConfig {
 
     private CorsConfigurationSource corsSource() {
         CorsConfiguration c = new CorsConfiguration();
-        // 开发期允许本地前端；生产环境改成实际域名
-        c.setAllowedOriginPatterns(List.of("http://localhost:*", "http://127.0.0.1:*"));
+        // 见 allowedOriginsRaw 的注释：本地开发端口 + 真实域名，都从配置读
+        List<String> origins = java.util.Arrays.stream(allowedOriginsRaw.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        c.setAllowedOriginPatterns(origins);
         c.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         c.setAllowedHeaders(List.of("*"));
         c.setAllowCredentials(true);

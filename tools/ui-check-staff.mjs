@@ -25,6 +25,10 @@ const PLAYWRIGHT_CORE =
   'C:/Users/wulei/AppData/Roaming/npm/node_modules/.openclaw-GciWGhVN/node_modules/playwright-core'
 const CHROMIUM = 'C:/Users/wulei/AppData/Local/ms-playwright/chromium-1237/chrome-win64/chrome.exe'
 const BASE = process.env.STAFF_BASE_URL || 'http://127.0.0.1:5173'
+// Same idea as ADMIN_PWD in ui-check-admin.mjs: the demo password is only
+// known outside this repo, so let a deployment run inject it via the
+// environment instead of hardcoding it here.
+const STAFF_PWD = process.env.STAFF_PWD || 'Followup@2026'
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const shotDir = path.join(projectRoot, 'output', 'playwright')
@@ -72,7 +76,7 @@ async function shot(name) {
   await page.screenshot({ path: path.join(shotDir, `${name}.png`), fullPage: true })
 }
 
-async function login(p, staffNo, password = 'Followup@2026') {
+async function login(p, staffNo, password = STAFF_PWD) {
   await p.goto(`${BASE}/#/login`, { waitUntil: 'networkidle' })
   await p.fill('input[placeholder="请输入工号"]', staffNo)
   await p.fill('input[placeholder="请输入密码"]', password)
