@@ -4,6 +4,10 @@
 # `bad interpreter: /bin/bash^M` 这类错，而且很难一眼看出来。
 * text=auto eol=lf
 
+# Windows 批处理单独用 CRLF：cmd 解析带 goto/标签的 .bat 时对纯 LF 并不总是
+# 友好（Gradle wrapper 的 gradlew.bat 就有标签）。Linux 侧用的是 gradlew（LF）。
+*.bat text eol=crlf
+
 # 二进制文件不要做任何转换
 *.jar binary
 *.zip binary
