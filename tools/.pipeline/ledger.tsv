@@ -21,3 +21,4 @@ ts	feature	stage	action	result	fingerprint	signature	note
 2026-09-23 21:48:02	C9-历史回访展示	fix	begin		3e6b5f5720fb80e2		
 2026-09-23 22:07:11	C9-历史回访展示	fix	end	PASS	3e6b5f5720fb80e2	C9-第二次回访看不到上次内容	已部署并全量复验：备份 backup/c9-20260923-214803/；线上 jar 2c9a255c、staff index-DXogMwOE.js；分片上传（链路抖动）后逐片 md5 与本地一致；四套 api 22/0/2、admin 18/0/2、security 13/0/2、portal 12/12；三端走查 staff 16/16（含 C9 两步）、patient 10/10、admin 11/11；CORS 回归仍正常（evil.example 403）；demo-reset 已复位
 2026-09-23 22:09:40	C11-安卓App壳	fix	begin		3e6b5f5720fb80e2		
+2026-09-23 22:12:07	C11-安卓App壳	fix	end	BLOCKED	3e6b5f5720fb80e2	C11-缺GitHub仓库无法出APK	壳与CI已完成并本地验证（cap add/sync/doctor、AndroidManifest带INTERNET、工程内配置确认指向线上站点、CI工作流YAML解析通过、secret-scan PASS、gradle-wrapper.jar已保住、gradlew为LF）；本机无Android SDK，APK必须靠GitHub Actions，而仓库没有远端 -> 等用户提供仓库地址
