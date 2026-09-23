@@ -17,3 +17,4 @@ ts	feature	stage	action	result	fingerprint	signature	note
 2026-09-23 21:32:49	C8-一键拨号真正可用	qa	end	PASS	aea1097b1ff9f46e	P1-线上口令冒烟未跑	阻塞原因已消除（口令到位）：线上 api 19/0/2、admin 18/0/2、security 13/0/2、portal 12/12；三端走查 staff 14/14、patient 10/10、admin 11/11；浏览器拨号 2 次均写审计 PATIENT_PHONE_DIAL。C8 线上验证闭环
 2026-09-23 21:36:41	C9-历史回访展示	fix	begin		aea1097b1ff9f46e		
 2026-09-23 21:36:42	default	qa	fingerprint		aea1097b1ff9f46e		
+2026-09-23 21:42:54	C9-历史回访展示	fix	end	PASS	aea1097b1ff9f46e	C9-第二次回访看不到上次内容	新增 GET /api/tasks/{id}/history（RLS 保证不跨患者，读取不单独写审计）+ 任务详情历史回访卡片；本地 api 24/0/0、admin 20/0/0、security 15/0/0、portal 12/12、医护端走查 16/16。未部署到线上，等用户批准
