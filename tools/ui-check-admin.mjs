@@ -24,6 +24,10 @@ const CHROMIUM = 'C:/Users/wulei/AppData/Local/ms-playwright/chromium-1237/chrom
 const BASE = process.env.ADMIN_BASE_URL || 'http://127.0.0.1:5175'
 const ADMIN_NO = process.env.ADMIN_NO || 'A0001'
 const ADMIN_PWD = process.env.ADMIN_PWD || 'Followup@2026'
+// A deployment may give the plain doctor a different password than the admin
+// (the smoke suites take -DoctorPassword for the same reason), so keep them
+// separable; default to the admin password.
+const DOCTOR_PWD = process.env.DOCTOR_PWD || ADMIN_PWD
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const shotDir = path.join(projectRoot, 'output', 'playwright')
@@ -85,7 +89,7 @@ await step('login page renders with hospital photo', async () => {
 })
 
 await step('a plain doctor is refused with a clear message', async () => {
-  await login(page, 'D0231', 'Followup@2026')
+  await login(page, 'D0231', DOCTOR_PWD)
   const err = page.locator('.notice.err')
   await err.waitFor({ timeout: 10000 })
   const msg = await err.innerText()

@@ -135,7 +135,10 @@ await step('scope switch MINE / TEAM re-queries the list', async () => {
 
 await step('open a task: detail renders diagnosis and pathway', async () => {
   await page.locator('article.task').first().click()
-  await page.waitForURL(/#\/task\//, { timeout: 10000 })
+  // Routes are lazy chunks: vue-router only rewrites the URL once the view's
+  // chunk has downloaded. Over a slow link to the deployed site that can take
+  // far longer than 10 s, which used to look like "the page is broken".
+  await page.waitForURL(/#\/task\//, { timeout: 30000 })
   await page.locator('.kv').first().waitFor({ timeout: 15000 })
 
   taskId = (page.url().match(/#\/task\/(\d+)/) || [])[1]
@@ -252,17 +255,28 @@ await step('submit the follow-up record', async () => {
   await toast.waitFor({ timeout: 15000 })
   const text = await toast.innerText()
   assert(/提交|完成|成功/.test(text), `unexpected toast: ${text}`)
+  // A successful submit leaves for the todo list 900 ms later. Wait for that
+  // redirect before the next step navigates somewhere else, otherwise the
+  // pending router.replace('/todo') undoes it - which showed up as a flaky
+  // "patients page" failure against the deployed site.
+  await page.waitForURL(/#\/todo/, { timeout: 20000 })
   await shot('staff-06-submitted')
 })
 
 await step('patients page lists patients and shows parallel pathways', async () => {
-  await page.goto(`${BASE}/#/patients`, { waitUntil: 'networkidle' })
+  await page.goto(`${BASE}/#/patients`)
+  // Views are lazy chunks: right after the hash changes the previous page is
+  // still on screen, and its cards use the very same `article.task` class.
+  // Without this wait the click below lands on a todo card and navigates to
+  // /task/... - which then looks like "the patient page never opened"
+  // (reproduced against the deployed site 2026-09-23).
+  await page.getByText('我的患者').first().waitFor({ timeout: 30000 })
   await page.locator('article.task').first().waitFor({ timeout: 15000 })
   const count = await page.locator('article.task').count()
   assert(count >= 1, `no patient rendered (count=${count})`)
 
   await page.locator('article.task').first().click()
-  await page.waitForURL(/#\/patient\//, { timeout: 10000 })
+  await page.waitForURL(/#\/patient\//, { timeout: 30000 })
   await page.getByText('并行随访路径').first().waitFor({ timeout: 15000 })
   await shot('staff-07-patient-detail')
 })

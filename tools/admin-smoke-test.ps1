@@ -125,7 +125,11 @@ function Connect-Staff([string]$staffNo, [string]$pwd) {
 Write-Head "Admin console smoke test  ($BaseUrl)"
 
 $admin = $null
-$testNo = 'T9' + (Get-Date -Format 'HHmmss')
+# The random suffix matters: two suites started in the same second used to
+# generate the same throw-away staff number, so whichever lost the race got a
+# bogus 409 "duplicate staff number". Keep the T9 prefix - demo-reset cleans
+# those up.
+$testNo = 'T9' + (Get-Date -Format 'HHmmss') + (Get-Random -Minimum 10 -Maximum 99)
 
 Write-Head '1. Identity'
 

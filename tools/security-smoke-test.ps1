@@ -150,7 +150,9 @@ function Login([string]$staffNo, [string]$pwd) {
 Write-Host ''
 Write-Host "Security smoke test  ($BaseUrl)" -ForegroundColor Cyan
 
-$testNo = 'T9' + (Get-Date -Format 'HHmmss')
+# Random suffix: two suites started in the same second used to collide on the
+# throw-away staff number (see admin-smoke-test.ps1).
+$testNo = 'T9' + (Get-Date -Format 'HHmmss') + (Get-Random -Minimum 10 -Maximum 99)
 $admin = $null
 $created = $null
 $temp = $null
