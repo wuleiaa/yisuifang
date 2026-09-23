@@ -1,0 +1,12 @@
+{
+  "appId": "work.yisuifang.followup",
+  "appName": "随访工作台",
+  "webDir": "dist",
+  "server": {
+    "url": "https://yisuifang.work",
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

@@ -20,3 +20,4 @@ ts	feature	stage	action	result	fingerprint	signature	note
 2026-09-23 21:42:54	C9-历史回访展示	fix	end	PASS	aea1097b1ff9f46e	C9-第二次回访看不到上次内容	新增 GET /api/tasks/{id}/history（RLS 保证不跨患者，读取不单独写审计）+ 任务详情历史回访卡片；本地 api 24/0/0、admin 20/0/0、security 15/0/0、portal 12/12、医护端走查 16/16。未部署到线上，等用户批准
 2026-09-23 21:48:02	C9-历史回访展示	fix	begin		3e6b5f5720fb80e2		
 2026-09-23 22:07:11	C9-历史回访展示	fix	end	PASS	3e6b5f5720fb80e2	C9-第二次回访看不到上次内容	已部署并全量复验：备份 backup/c9-20260923-214803/；线上 jar 2c9a255c、staff index-DXogMwOE.js；分片上传（链路抖动）后逐片 md5 与本地一致；四套 api 22/0/2、admin 18/0/2、security 13/0/2、portal 12/12；三端走查 staff 16/16（含 C9 两步）、patient 10/10、admin 11/11；CORS 回归仍正常（evil.example 403）；demo-reset 已复位
+2026-09-23 22:09:40	C11-安卓App壳	fix	begin		3e6b5f5720fb80e2		

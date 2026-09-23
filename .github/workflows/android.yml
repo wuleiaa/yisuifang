@@ -1,0 +1,64 @@
+name: android-debug-apk
+
+# C11：安卓 App 壳（Capacitor）。
+# 本机没有 Android SDK（ANDROID_HOME 为空），所以 APK 一律在 CI 里出：
+# 推上 GitHub 后 Actions 会自动构建，产物在本次运行的 Artifacts 里下载。
+#
+# 说明：WebView 加载的是线上 H5（见 frontend/capacitor.config.json 的 server.url），
+# 所以 H5 改完不需要重新出包；这个工作流只在壳（android/ 或 Capacitor 配置）改动时才有必要跑。
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'frontend/android/**'
+      - 'frontend/capacitor.config.json'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
+      - '.github/workflows/android.yml'
+
+jobs:
+  build-debug-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # webDir 的内容会被打进 APK 作为兜底资源，所以先构建一次 H5
+      - name: Build staff H5
+        working-directory: frontend
+        run: npm run build
+
+      - name: Capacitor sync (android)
+        working-directory: frontend
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: frontend/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: followup-staff-debug-apk
+          path: frontend/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

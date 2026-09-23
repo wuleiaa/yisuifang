@@ -30,6 +30,14 @@ dist-deploy/
 output/
 # 【注意】tools/.pipeline/ 是流水线台账（第几轮的唯一历史），**不要**忽略它
 
+# ---------------------------------------------------------------- 安卓 App（C11）
+# Gradle wrapper 的 jar 是构建必备文件：上面的 *.jar 会把它一起忽略掉，
+# 少了它 CI 里 ./gradlew 直接报 "wrapper jar missing"（已实测）。
+!frontend/android/gradle/wrapper/gradle-wrapper.jar
+# 签名密钥绝不能进仓库：一旦提交，等于给全院 APK 发了一把万能钥匙
+*.jks
+*.keystore
+
 # ---------------------------------------------------------------- IDE
 .idea/
 *.iml
