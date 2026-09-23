@@ -4,3 +4,6 @@ ts	feature	stage	action	result	fingerprint	signature	note
 2026-09-22 21:14:24	default	qa	fingerprint		eddbcc00f0cab09a		
 2026-09-22 21:29:21	C8-一键拨号真正可用	fix	begin		0176e42ae7f74395		
 2026-09-22 21:37:47	C8-一键拨号真正可用	fix	end	PASS	0176e42ae7f74395	P1-一键拨号只弹提示不拨号	新增 POST /api/tasks/{id}/dial（解密+写审计 PATIENT_PHONE_DIAL）+ 前端 tel: 拨号；本机 api 20/0/0、security 15/0/0、admin 20/0/0、portal 12/12，三端走查 35 步全绿；github push 未做
+2026-09-23 20:44:42	default	qa	fingerprint		8bfdf12bd04cc323		
+2026-09-23 20:44:57	C8-一键拨号真正可用	fix	begin		8bfdf12bd04cc323		
+2026-09-23 20:47:05	C8-一键拨号真正可用	fix	end	BLOCKED	8bfdf12bd04cc323	P1-线上口令冒烟未跑	第2轮：已备份并部署到线上（jar b768f5d5、staff index-CNWWO69b.js），公网免口令复验通过（三端+health 200、ui包md5端到端一致、portal 12/12）；带口令的三套冒烟+三端走查+demo-reset 待用户口令
