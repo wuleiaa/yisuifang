@@ -12,3 +12,4 @@ ts	feature	stage	action	result	fingerprint	signature	note
 2026-09-23 21:06:41	P0-HTTPS下浏览器写请求被CORS拒绝	fix	begin		c127a7ec54fccc38		
 2026-09-23 21:09:50	P0-HTTPS下浏览器写请求被CORS拒绝	fix	end	PASS	c127a7ec54fccc38	P0-HTTPS下浏览器写请求被CORS拒绝	修复已提交 3b66b0f：forward-headers-strategy=framework + CORS 白名单可配并含真实域名；实测 yisuifang.work/www 放行、evil.example 仍 403；本地 api 21/0/0（新增 Origin 回归断言）、admin 20/0/0、security 15/0/0、portal 12/12、走查 14/14。尚未部署到线上（等你批准）
 2026-09-23 21:12:52	P0-HTTPS下浏览器写请求被CORS拒绝	fix	begin		a4f53aad606c679b		
+2026-09-23 21:32:40	P0-HTTPS下浏览器写请求被CORS拒绝	fix	end	PASS	a4f53aad606c679b	P0-HTTPS下浏览器写请求被CORS拒绝	已部署并全量复验：线上 Origin 探针 yisuifang.work/www=200、evil.example=403；四套 api 19/0/2、admin 18/0/2、security 13/0/2、portal 12/12；三端浏览器走查 staff 14/14、patient 10/10、admin 11/11（含真登录与真点拨号）；审计表 PATIENT_PHONE_DIAL/SUCCESS/2 行来自浏览器拨号。备份 backup/p0-cors-20260923-211253/
