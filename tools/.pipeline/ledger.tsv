@@ -23,3 +23,4 @@ ts	feature	stage	action	result	fingerprint	signature	note
 2026-09-23 22:09:40	C11-安卓App壳	fix	begin		3e6b5f5720fb80e2		
 2026-09-23 22:12:07	C11-安卓App壳	fix	end	BLOCKED	3e6b5f5720fb80e2	C11-缺GitHub仓库无法出APK	壳与CI已完成并本地验证（cap add/sync/doctor、AndroidManifest带INTERNET、工程内配置确认指向线上站点、CI工作流YAML解析通过、secret-scan PASS、gradle-wrapper.jar已保住、gradlew为LF）；本机无Android SDK，APK必须靠GitHub Actions，而仓库没有远端 -> 等用户提供仓库地址
 2026-09-23 22:12:19	C13-质控看板	fix	begin		c4f7d2473f8364b7		
+2026-09-23 22:22:00	C13-质控看板	fix	end	PASS	c4f7d2473f8364b7	C13-管理后台统计被RLS清零	新增 GET /api/admin/qc + 管理后台质控看板页；同时修掉 AdminService 未设置 RLS 会话变量导致概览待办/逾期恒为 0 的 bug（实测接口 10/2 == 数据库 10/2）。本地 api 24/0/0、admin 24/0/0、security 15/0/0、portal 12/12；三端走查 staff 16、patient 10、admin 12。未部署，等用户批准
