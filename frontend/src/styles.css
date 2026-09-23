@@ -407,6 +407,19 @@ textarea:focus, input:focus { border-color: #bcd4ff; background: #fafcff; }
 /* ---------------------------------------------------------------- 工具类 */
 .loading { text-align: center; padding: 40px; color: var(--text3); font-size: 13.5px; }
 .row-between { display: flex; align-items: center; justify-content: space-between; }
+
+/* ---------------------------------------------- 历史回访（C9）
+   第二次回访时给护士看"上次说了什么"：一条一条贴在任务详情里，
+   结论是主信息（字号大一些、保留换行），其余是辅助信息。 */
+.hist { padding: 12px 0; border-top: 1px dashed var(--line); }
+.hist:first-of-type { border-top: none; padding-top: 2px; }
+.hist-msg {
+  margin-top: 6px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+}
 .mt8 { margin-top: 8px; }
 .mt12 { margin-top: 12px; }
 .muted { color: var(--text2); font-size: 12.5px; }

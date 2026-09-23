@@ -50,6 +50,16 @@ public class TaskController {
         return ApiResponse.ok(taskService.dial(id));
     }
 
+    /**
+     * 历史回访：同一患者以前做过的回访记录（第二次回访时看"上次说了什么"）。
+     *
+     * GET：只读参考，不改状态、不解密任何敏感字段，所以不需要审计。
+     */
+    @GetMapping("/{id}/history")
+    public ApiResponse<TaskDtos.TaskHistory> history(@PathVariable Long id) {
+        return ApiResponse.ok(taskService.history(id));
+    }
+
     @PostMapping("/complete")
     public ApiResponse<TaskDtos.CompleteTaskResponse> complete(
             @Valid @RequestBody TaskDtos.CompleteTaskRequest req) {

@@ -19,17 +19,23 @@ import com.hospital.followup.repository.FollowupTaskLogRepository;
 import com.hospital.followup.repository.FollowupTaskRepository;
 import com.hospital.followup.repository.MedicalProcedureRepository;
 import com.hospital.followup.repository.PatientRepository;
+import com.hospital.followup.repository.StaffRepository;
 import com.hospital.followup.security.CurrentUser;
 import com.hospital.followup.security.RlsSession;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -45,6 +51,9 @@ public class TaskService {
     private static final Set<String> DANGER_SYMPTOMS =
             Set.of("呕血", "黑便", "便血", "发热", "黄疸", "剧烈腹痛", "明显异常");
 
+    /** 历史回访最多展示几条：打电话时看不了太多，多了反而找不到重点 */
+    private static final int HISTORY_LIMIT = 5;
+
     private static final java.time.ZoneId ZONE = java.time.ZoneId.of("Asia/Shanghai");
 
     private final FollowupTaskRepository taskRepository;
@@ -58,6 +67,8 @@ public class TaskService {
     private final RlsSession rlsSession;
     private final CryptoService cryptoService;
     private final AuditLogService auditLogService;
+    private final StaffRepository staffRepository;
+    private final ObjectMapper objectMapper;
 
     @PersistenceContext
     private EntityManager em;
@@ -72,7 +83,9 @@ public class TaskService {
                        MedicalProcedureRepository procedureRepository,
                        RlsSession rlsSession,
                        CryptoService cryptoService,
-                       AuditLogService auditLogService) {
+                       AuditLogService auditLogService,
+                       StaffRepository staffRepository,
+                       ObjectMapper objectMapper) {
         this.taskRepository = taskRepository;
         this.taskLogRepository = taskLogRepository;
         this.recordRepository = recordRepository;
@@ -84,6 +97,8 @@ public class TaskService {
         this.rlsSession = rlsSession;
         this.cryptoService = cryptoService;
         this.auditLogService = auditLogService;
+        this.staffRepository = staffRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -234,6 +249,96 @@ public class TaskService {
                 AuditLogService.noteJson("taskId=" + taskId));
 
         return new TaskDtos.DialPhone(p.getPhoneMask(), phone);
+    }
+
+    /**
+     * 历史回访（C9）：同一患者以前做过的回访记录，新的在前。
+     *
+     * 【为什么需要】第二次回访时护士看不到"上次说了什么"，等于每次从零问起：
+     *  患者要重复叙述、上次叮嘱过的注意事项容易被漏掉（待办清单第 9 条）。
+     *
+     * 【可见范围靠数据库，不靠这里】followup_record 上开着 RLS（p_record_access）：
+     *  护士只能读到"自己执行的 + 自己主管患者组的"记录。本方法只按 patient_id 取，
+     *  既不跨患者、也不会因为换了任务就绕过行级权限。
+     *
+     * 【当前任务自己的记录也在列表里】待办任务还没有记录，所以护士看到的最新一条
+     *  就是"上次说了什么"；如果重复打开一条已完成任务，则能看到这次刚写的内容——
+     *  排除掉反而像是"我刚提交的东西丢了"（这是实测出来的，不是想当然）。
+     *
+     * 【为什么不写审计】这是正常业务读取（打开任务就看），不是对敏感字段的例外访问——
+     *  完整手机号那种才需要二次验证 + 审计。每次打开任务都写一条审计，只会把审计表淹掉，
+     *  让真正的事故痕迹更难找。本次回访本身仍照常写流水与审计。
+     */
+    @Transactional(readOnly = true)
+    public TaskDtos.TaskHistory history(Long taskId) {
+        rlsSession.apply();
+
+        FollowupTask t = taskRepository.findById(taskId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "任务不存在或您无权查看"));
+
+        List<FollowupRecord> picked = recordRepository.findPatientHistory(
+                t.getPatientId(), PageRequest.of(0, HISTORY_LIMIT));
+
+        if (picked.isEmpty()) {
+            // 首次回访：前端据此显示"这是该患者的首次回访"
+            return new TaskDtos.TaskHistory(t.getPatientId(), 0, List.of());
+        }
+
+        Map<Long, String> staffNames = new HashMap<>();
+        staffRepository.findAllById(picked.stream()
+                        .map(FollowupRecord::getExecutedBy).filter(Objects::nonNull).distinct().toList())
+                .forEach(s -> staffNames.put(s.getId(), s.getName()));
+
+        // 任务标题可能取不到（那条任务不在当前用户的可见范围内），前端会退回只显示时间
+        Map<Long, String> taskTitles = new HashMap<>();
+        taskRepository.findAllById(picked.stream()
+                        .map(FollowupRecord::getTaskId).filter(Objects::nonNull).distinct().toList())
+                .forEach(x -> taskTitles.put(x.getId(), x.getTitle()));
+
+        List<TaskDtos.HistoryItem> items = picked.stream().map(r -> new TaskDtos.HistoryItem(
+                r.getId(),
+                r.getTaskId(),
+                taskTitles.get(r.getTaskId()),
+                r.getExecutedAt(),
+                staffNames.get(r.getExecutedBy()),
+                Boolean.TRUE.equals(r.getContacted()),
+                r.getContactTarget(),
+                parseSymptoms(r.getSymptomJson()),
+                r.getRecoveryLevel(),
+                recoveryText(r.getRecoveryLevel()),
+                r.getMedicationAdherence(),
+                r.getConclusion(),
+                r.getAdvice(),
+                r.getNextAction(),
+                Boolean.TRUE.equals(r.getIsAbnormal())
+        )).toList();
+
+        return new TaskDtos.TaskHistory(t.getPatientId(), items.size(), items);
+    }
+
+    /** 症状 JSON 数组 -> List；解析失败不让整条历史挂掉（历史字段是只读参考，不能反过来挡住回访） */
+    private List<String> parseSymptoms(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json,
+                    new com.fasterxml.jackson.core.type.TypeReference<List<String>>() { });
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    private static String recoveryText(String level) {
+        if (level == null) {
+            return null;
+        }
+        return switch (level) {
+            case "GOOD" -> "恢复良好";
+            case "MILD" -> "轻度不适";
+            case "ABNORMAL" -> "明显异常";
+            default -> level;
+        };
     }
 
     /**

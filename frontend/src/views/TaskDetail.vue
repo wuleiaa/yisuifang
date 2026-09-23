@@ -12,6 +12,9 @@ const loading = ref(true)
 const submitting = ref(false)
 const detail = ref(null)
 
+/** 历史回访（C9）：同一患者以前做过的记录，第二次回访时参考 */
+const history = ref(null)
+
 /** 被同事占锁：仍然能看到任务信息，但提交时后端会拦（30 分钟后锁自动失效） */
 const lockedByOther = ref(false)
 
@@ -74,6 +77,19 @@ async function load() {
     }
   } finally {
     loading.value = false
+  }
+  loadHistory()
+}
+
+/**
+ * 历史回访单独取：它只是参考信息，取不到也不能挡住这次回访。
+ * （所以失败只静默忽略，不弹错误提示。）
+ */
+async function loadHistory() {
+  try {
+    history.value = await api.taskHistory(taskId)
+  } catch {
+    history.value = null
   }
 }
 
@@ -251,6 +267,36 @@ onMounted(load)
         该任务正在被其他同事处理。为避免重复打扰患者，建议先与同事确认；
         若确认无人处理（超过 30 分钟），可直接提交。
       </div>
+
+      <!-- 历史回访（C9）：第二次回访时先看"上次说了什么"，别让患者重复叙述 -->
+      <section v-if="history" class="card m14">
+        <div class="row-between" style="margin-bottom: 10px">
+          <strong style="font-size: 15px">历史回访</strong>
+          <span class="muted">{{ history.count ? `最近 ${history.count} 次` : '' }}</span>
+        </div>
+
+        <div v-if="!history.count" class="muted" style="font-size: 13.5px">
+          这是该患者的首次回访，没有历史记录。
+        </div>
+
+        <div v-for="h in history.items" :key="h.recordId" class="hist">
+          <div class="row-between">
+            <span class="muted" style="font-size: 12.5px">
+              {{ fmtDateTime(h.executedAt) }} · {{ h.executedByName || '—' }}
+              <template v-if="h.taskTitle"> · {{ h.taskTitle }}</template>
+            </span>
+            <span class="chip" :class="h.abnormal ? 'red' : 'blue'">
+              {{ h.abnormal ? '异常' : h.recoveryLevelText || '—' }}
+            </span>
+          </div>
+          <div class="hist-msg">{{ h.conclusion || '（未填写结论）' }}</div>
+          <div v-if="h.advice" class="muted" style="font-size: 12.5px">指导：{{ h.advice }}</div>
+          <div v-if="(h.symptoms || []).length" class="muted" style="font-size: 12.5px">
+            症状：{{ h.symptoms.join('、') }}<template v-if="h.medicationAdherence"> · 用药：{{ h.medicationAdherence }}</template>
+          </div>
+          <div v-if="h.contacted === false" class="muted" style="font-size: 12.5px">这次没联系上本人</div>
+        </div>
+      </section>
 
       <!-- 回访表单 -->
       <section class="card m14">

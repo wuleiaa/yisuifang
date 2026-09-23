@@ -241,6 +241,18 @@ await step('on a phone the digits really reach tel:', async () => {
   await ctx.close()
 })
 
+await step('history card renders on the task detail (C9)', async () => {
+  // Accept both shapes on purpose: the demo patient may already have records
+  // from an earlier run, or this may be the first call.
+  const card = page.locator('section.card', { hasText: '历史回访' }).first()
+  await card.waitFor({ timeout: 20000 })
+  const text = await card.innerText()
+  assert(
+    text.includes('首次回访') || /最近 \d+ 次/.test(text),
+    `unexpected history card: ${text.slice(0, 120)}`
+  )
+})
+
 await step('fill the follow-up form with one tap on a phrase template', async () => {
   await page.locator('.tpl', { hasText: '恢复良好' }).first().click()
   const value = await page.locator('textarea').first().inputValue()
@@ -261,6 +273,19 @@ await step('submit the follow-up record', async () => {
   // "patients page" failure against the deployed site.
   await page.waitForURL(/#\/todo/, { timeout: 20000 })
   await shot('staff-06-submitted')
+})
+
+await step('re-opening the task shows that call as history (C9)', async () => {
+  // This is the acceptance test for C9: the second visit must see what the
+  // first one said. We just wrote a record containing the "提醒复查" template.
+  await page.goto(`${BASE}/#/task/${taskId}`)
+  await page.getByText('历史回访').first().waitFor({ timeout: 30000 })
+  const card = page.locator('section.card', { hasText: '历史回访' }).first()
+  await card.getByText('已提醒按期门诊复查').first().waitFor({ timeout: 20000 })
+  const text = await card.innerText()
+  assert(/最近 \d+ 次/.test(text), `history header missing: ${text.slice(0, 120)}`)
+  assert(text.includes('李医生') || text.includes('主管医生'), `history lacks the author: ${text.slice(0, 200)}`)
+  await shot('staff-11-history')
 })
 
 await step('patients page lists patients and shows parallel pathways', async () => {

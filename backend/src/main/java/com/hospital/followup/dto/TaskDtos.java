@@ -98,6 +98,36 @@ public final class TaskDtos {
     ) {
     }
 
+    /**
+     * 历史回访的一条记录（C9）：第二次回访时护士要能看到"上次说了什么"。
+     */
+    public record HistoryItem(
+            Long recordId,
+            Long taskId,
+            String taskTitle,
+            OffsetDateTime executedAt,
+            String executedByName,
+            Boolean contacted,
+            String contactTarget,
+            List<String> symptoms,
+            String recoveryLevel,
+            String recoveryLevelText,
+            String medicationAdherence,
+            String conclusion,
+            String advice,
+            String nextAction,
+            boolean abnormal
+    ) {
+    }
+
+    /** 历史回访列表；count = 0 表示这是首次回访 */
+    public record TaskHistory(
+            Long patientId,
+            int count,
+            List<HistoryItem> items
+    ) {
+    }
+
     public record CompleteTaskRequest(
             @NotNull(message = "缺少任务编号")
             Long taskId,

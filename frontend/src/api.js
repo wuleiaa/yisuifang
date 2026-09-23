@@ -124,6 +124,8 @@ export const api = {
   claimTask: (id) => client.post(`/tasks/${id}/claim`),
   // 一键拨号：后端解密并写审计，只把号码交给系统拨号器，不要渲染到页面上
   dialTask: (id) => client.post(`/tasks/${id}/dial`),
+  // 历史回访（C9）：同一患者以前的回访记录，第二次回访时参考
+  taskHistory: (id) => client.get(`/tasks/${id}/history`),
   completeTask: (payload) => client.post('/tasks/complete', payload),
 
   patients: (keyword, limit = 50) =>

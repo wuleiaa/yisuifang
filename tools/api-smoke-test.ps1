@@ -444,6 +444,94 @@ Test-Step 'task log keeps claim / complete history' {
 } | Out-Null
 
 # -----------------------------------------------------------------------------
+# 7. follow-up history (C9)
+#
+#    A second call to the same patient has to show what was said last time.
+#    Three things matter:
+#      a. the record this run just wrote shows up in the history;
+#      b. nothing from another patient leaks in (RLS + the patient filter);
+#      c. an unknown task is a clean 404, not an empty success.
+# -----------------------------------------------------------------------------
+Write-Head '7. Follow-up history'
+
+$script:historyMarker = 'smoke test: patient reports no discomfort'
+$script:history = $null
+
+$script:history = $null
+$script:otherPatientTaskId = $null
+
+Test-Step 'the second call on the same patient sees the previous note' {
+    Assert-True ($null -ne $taskId) 'no task id available'
+
+    # "Second call" = another task of the SAME patient. The history deliberately
+    # excludes the task being opened (the nurse wants the previous call, not the
+    # one on screen), so querying the task that was just completed would prove
+    # nothing.
+    $d = Invoke-Api -Method Get -Path "/api/tasks/$taskId" -Headers $script:doctorHeaders
+    $pd = Invoke-Api -Method Get -Path "/api/patients/$($d.patientId)" -Headers $script:doctorHeaders
+
+    $samePatientTaskId = $null
+    foreach ($w in $pd.pathways) {
+        foreach ($s in $w.steps) {
+            if ($s.taskId -ne $taskId) { $samePatientTaskId = $s.taskId; break }
+        }
+        if ($samePatientTaskId) { break }
+    }
+    Assert-True ($null -ne $samePatientTaskId) 'demo patient has a single task - cannot test a second call'
+
+    $h = Invoke-Api -Method Get -Path "/api/tasks/$samePatientTaskId/history" -Headers $script:doctorHeaders
+    Assert-True ($h.count -ge 1) "history for the patient's other task is empty (count=$($h.count))"
+
+    $conclusions = @($h.items | ForEach-Object { "$($_.conclusion)" })
+    Assert-True ($conclusions -contains $script:historyMarker) `
+        'the note written by this run is missing from the previous call history'
+
+    Assert-True ($null -ne $h.items[0].executedAt) 'history item has no executedAt'
+    Assert-True ($h.items[0].executedByName.Length -ge 1) 'history item has no author name'
+    Write-Host ("        {0} record(s), newest {1} by {2}" -f `
+        $h.count, $h.items[0].executedAt, $h.items[0].executedByName) -ForegroundColor DarkGray
+    $script:history = $h
+    return $h
+} | Out-Null
+
+Test-Step 'history never crosses patients' {
+    Assert-True ($null -ne $script:history) 'the history step did not run'
+
+    # Same endpoint, another patient: the note must not follow us there.
+    $otherPatient = $null
+    foreach ($row in $patientList) {
+        if ($row.id -ne $script:history.patientId) { $otherPatient = $row; break }
+    }
+    Assert-True ($null -ne $otherPatient) 'the demo data has only one patient - cannot test isolation'
+
+    $otherDetail = Invoke-Api -Method Get -Path "/api/patients/$($otherPatient.id)" -Headers $script:doctorHeaders
+    $otherTaskId = $null
+    foreach ($w in $otherDetail.pathways) {
+        foreach ($s in $w.steps) { if (-not $otherTaskId) { $otherTaskId = $s.taskId } }
+    }
+    Assert-True ($null -ne $otherTaskId) 'the other patient has no task to query'
+
+    $other = Invoke-Api -Method Get -Path "/api/tasks/$otherTaskId/history" -Headers $script:doctorHeaders
+    $leaked = @($other.items | Where-Object { "$($_.conclusion)" -eq $script:historyMarker })
+    Assert-True ($leaked.Count -eq 0) 'a note from another patient leaked into this history'
+    Write-Host ("        other patient: {0} record(s), no leak" -f $other.count) -ForegroundColor DarkGray
+    return $other
+} | Out-Null
+
+Test-Step 'history for an unknown task -> 404' {
+    try {
+        Invoke-RestMethod -Uri "$BaseUrl/api/tasks/99999999/history" -TimeoutSec 10 `
+            -Headers $script:doctorHeaders | Out-Null
+        throw 'expected 404 but the call succeeded'
+    } catch {
+        $status = $null
+        if ($_.Exception.Response) { $status = [int]$_.Exception.Response.StatusCode }
+        Assert-True ($status -eq 404 -or $status -eq 403) "expected 404/403, got $status"
+    }
+    return $null
+} | Out-Null
+
+# -----------------------------------------------------------------------------
 # summary
 # -----------------------------------------------------------------------------
 Write-Head 'Summary'
