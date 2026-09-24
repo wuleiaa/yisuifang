@@ -130,7 +130,12 @@ export const api = {
 
   patients: (keyword, limit = 50) =>
     client.get('/patients', { params: { keyword, limit } }),
-  patientDetail: (id) => client.get(`/patients/${id}`)
+  patientDetail: (id) => client.get(`/patients/${id}`),
+
+  // ---- 提醒（C12）：安卓壳拉计划 → 排本地通知 → 回执 ----
+  reminderPlan: (at) => client.get('/reminders/plan', { params: at ? { at } : {} }),
+  reminderRule: () => client.get('/reminders/rule'),
+  reminderAck: (payload) => client.post('/reminders/ack', payload)
 }
 
 export default client

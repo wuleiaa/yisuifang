@@ -532,6 +532,112 @@ Test-Step 'history for an unknown task -> 404' {
 } | Out-Null
 
 # -----------------------------------------------------------------------------
+# 8. reminders (C12)
+#
+#    The reminder policy (docs 第04轮 / 第07轮) is: T-1 18:00 preview, 08:00
+#    start then every 2 h on the due day, three times a day for 1-3 days
+#    overdue, once a day until 14 days, and nothing between 22:00 and 07:00.
+#    What is asserted here is the *shape* of the schedule (allowed slots, quiet
+#    hours, horizon) plus scheduler idempotency - not a hardcoded list of
+#    times, because the demo data moves every day.
+# -----------------------------------------------------------------------------
+Write-Head '8. Reminders'
+
+$script:plan = $null
+
+$script:plan = Test-Step 'GET /api/reminders/plan returns a schedule' {
+    $p = Invoke-Api -Method Get -Path '/api/reminders/plan' -Headers $script:doctorHeaders
+    Assert-True ($null -ne $p.rule) 'plan carries no rule'
+    Assert-True ($p.rule.quietStart -eq '22:00' -and $p.rule.quietEnd -eq '07:00') `
+        "unexpected quiet hours: $($p.rule.quietStart)-$($p.rule.quietEnd)"
+    Assert-True ($p.rule.stopAfterDays -ge 1) 'stopAfterDays looks wrong'
+    Assert-True ($null -ne $p.items) 'plan has no items array'
+    Write-Host ("        rule={0} quiet={1}-{2} items={3} dueToday={4} overdue={5}" -f `
+        $p.rule.name, $p.rule.quietStart, $p.rule.quietEnd, $p.items.Count,
+        $p.dueTodayCount, $p.overdueCount) -ForegroundColor DarkGray
+    return $p
+}
+
+Test-Step 'planned reminders respect slots, quiet hours and the 48h horizon' {
+    $p = $script:plan
+    Assert-True ($null -ne $p) 'the plan step did not run'
+    $now = ([datetimeoffset]::Now).ToOffset([TimeSpan]::FromHours(8))
+    $dueTodaySlots = @('08:00', '10:00', '12:00', '14:00', '16:00', '18:00')
+    $overdueSlots = @('08:00', '12:00', '17:00')
+
+    foreach ($it in $p.items) {
+        $t = ([datetimeoffset]::Parse($it.notifyAt)).ToOffset([TimeSpan]::FromHours(8))
+        $hhmm = $t.ToString('HH:mm')
+        Assert-True (-not ($hhmm -ge '22:00' -or $hhmm -lt '07:00')) `
+            "reminder at $hhmm falls inside quiet hours"
+        Assert-True ($t -ge $now.AddMinutes(-1)) "reminder at $($it.notifyAt) is already in the past"
+        Assert-True ($t -le $now.AddHours(49)) "reminder at $($it.notifyAt) is beyond the 48h horizon"
+        if ($it.level -eq 'OVERDUE') {
+            Assert-True ($overdueSlots -contains $hhmm) "overdue reminder at an unexpected time: $hhmm"
+        } else {
+            Assert-True ($dueTodaySlots -contains $hhmm) "reminder at an unexpected time: $hhmm"
+        }
+        Assert-True ($it.taskCount -ge 1) "item has no tasks: $($it.key)"
+        Assert-True ($it.message.Length -gt 4) "item message looks empty: $($it.message)"
+    }
+    Write-Host ("        checked {0} item(s)" -f $p.items.Count) -ForegroundColor DarkGray
+    return $null
+} | Out-Null
+
+Test-Step 'a plan computed at 23:00 still avoids the night' {
+    $at = ([datetimeoffset]::Now).ToOffset([TimeSpan]::FromHours(8)).Date
+    $stamp = $at.AddHours(23).ToString("yyyy-MM-dd'T'HH:mm:sszzz")
+    $p = Invoke-Api -Method Get -Path ('/api/reminders/plan?at=' + [uri]::EscapeDataString($stamp)) `
+        -Headers $script:doctorHeaders
+    foreach ($it in $p.items) {
+        $hhmm = ([datetimeoffset]::Parse($it.notifyAt)).ToOffset([TimeSpan]::FromHours(8)).ToString('HH:mm')
+        Assert-True (-not ($hhmm -ge '22:00' -or $hhmm -lt '07:00')) `
+            "reminder at $hhmm falls inside quiet hours when planned at 23:00"
+    }
+    Write-Host ("        planned at 23:00 -> {0} item(s)" -f $p.items.Count) -ForegroundColor DarkGray
+    return $p
+} | Out-Null
+
+Test-Step 'the scan is idempotent (scheduler)' {
+    $slot = ([datetimeoffset]::Now).ToOffset([TimeSpan]::FromHours(8)).Date
+    $stamp = $slot.AddHours(10).ToString("yyyy-MM-dd'T'HH:mm:sszzz")
+    $path = '/api/dev/reminders/scan?at=' + [uri]::EscapeDataString($stamp)
+    $first = Invoke-Api -Method Post -Path $path -Headers $script:managerHeaders
+    $second = Invoke-Api -Method Post -Path $path -Headers $script:managerHeaders
+    Assert-True ($first.created -ge 1) "the 10:00 scan created nothing (demo has no task due today?)"
+    Assert-True ($second.created -eq 0) "the scan is not idempotent: it created $($second.created) again"
+    Write-Host ("        scan@10:00 -> created {0}, re-run {1}" -f $first.created, $second.created) -ForegroundColor DarkGray
+    return $first
+} | Out-Null
+
+Test-Step 'the app ack marks reminders as sent to the device' {
+    Assert-True ($null -ne $script:plan) 'the plan step did not run'
+    $keys = @($script:plan.items | ForEach-Object { $_.key })
+    Assert-True ($keys.Count -ge 1) 'the plan has no items to acknowledge'
+
+    $res = Invoke-Api -Method Post -Path '/api/reminders/ack' -Headers $script:doctorHeaders -Body @{
+        keys     = $keys
+        deviceId = 'smoke-device-1'
+        platform = 'ANDROID'
+    }
+    Assert-True ($res.acked -ge 1) "ack reported $($res.acked)"
+
+    if (-not $script:LocalDevDbUp) {
+        Write-Host '        needs the local dev db - verify notify_log on that server database' -ForegroundColor DarkGray
+        $script:SkipPending = $true
+        return $null
+    }
+    $sent = & D:\devtools\pgtool\pgsql\bin\psql.exe -h 127.0.0.1 -p 55432 -U postgres -d followup_dev -t -A `
+        -c "select count(*) from notify_log where status = 'SENT' and channel_code = 'ANDROID_LOCAL';" 2>&1
+    Assert-True ([int]$sent -ge 1) 'notify_log has no SENT rows for the android channel'
+    $dev = & D:\devtools\pgtool\pgsql\bin\psql.exe -h 127.0.0.1 -p 55432 -U postgres -d followup_dev -t -A `
+        -c "select count(*) from user_device where device_id = 'smoke-device-1';" 2>&1
+    Assert-True ([int]$dev -ge 1) 'the device was not registered'
+    Write-Host ("        notify_log SENT={0}, device rows={1}" -f ([int]$sent), ([int]$dev)) -ForegroundColor DarkGray
+    return $null
+} | Out-Null
+
+# -----------------------------------------------------------------------------
 # summary
 # -----------------------------------------------------------------------------
 Write-Head 'Summary'

@@ -1,7 +1,8 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getProfile } from './api'
+import { getProfile, getToken } from './api'
+import { syncReminders, bindNotificationTap } from './notifications'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,6 +33,19 @@ const currentTab = computed(() => route.name)
 function go(path) {
   router.push(path)
 }
+
+/**
+ * 打开 App 时同步一次提醒排程（C12）。
+ *
+ * 本地通知由手机自己排，所以"每次打开同步一次"就是刷新排程的时机：
+ * 刚完成的随访任务不会再提醒，新到期的会补上。
+ * 在浏览器里 syncReminders() 是空操作，不会报错也不会打扰。
+ */
+onMounted(() => {
+  if (!getToken()) return
+  bindNotificationTap()
+  syncReminders().catch(() => {})
+})
 </script>
 
 <template>

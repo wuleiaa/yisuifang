@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { api, setSession, clearSession } from '../api'
+import { syncReminders, bindNotificationTap } from '../notifications'
 
 const router = useRouter()
 const route = useRoute()
@@ -65,6 +66,9 @@ async function submit() {
       window.location.href = adminUrl
       return
     }
+    // 登录成功后立刻同步一次提醒排程（安卓壳里才真正做事）
+    bindNotificationTap()
+    syncReminders().catch(() => {})
     router.replace(route.query.redirect || '/todo')
   } catch (e) {
     error.value = e.message || '登录失败'
