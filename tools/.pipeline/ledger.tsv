@@ -24,3 +24,6 @@ ts	feature	stage	action	result	fingerprint	signature	note
 2026-09-23 22:12:07	C11-安卓App壳	fix	end	BLOCKED	3e6b5f5720fb80e2	C11-缺GitHub仓库无法出APK	壳与CI已完成并本地验证（cap add/sync/doctor、AndroidManifest带INTERNET、工程内配置确认指向线上站点、CI工作流YAML解析通过、secret-scan PASS、gradle-wrapper.jar已保住、gradlew为LF）；本机无Android SDK，APK必须靠GitHub Actions，而仓库没有远端 -> 等用户提供仓库地址
 2026-09-23 22:12:19	C13-质控看板	fix	begin		c4f7d2473f8364b7		
 2026-09-23 22:22:00	C13-质控看板	fix	end	PASS	c4f7d2473f8364b7	C13-管理后台统计被RLS清零	新增 GET /api/admin/qc + 管理后台质控看板页；同时修掉 AdminService 未设置 RLS 会话变量导致概览待办/逾期恒为 0 的 bug（实测接口 10/2 == 数据库 10/2）。本地 api 24/0/0、admin 24/0/0、security 15/0/0、portal 12/12；三端走查 staff 16、patient 10、admin 12。未部署，等用户批准
+2026-09-24 11:51:00	default	qa	fingerprint		ab0eae2e8d445e1c		
+2026-09-24 11:51:09	C13-质控看板	fix	begin		ab0eae2e8d445e1c		
+2026-09-24 11:55:08	C13-质控看板	fix	end	PASS	ab0eae2e8d445e1c	C13-管理后台统计被RLS清零	已部署并全量复验：备份 backup/c13-20260924-115111/；线上 jar fa3cf444、admin index-u1wDCt7D.js；关键验证 线上 overview 从 0/0 变成 pendingTask=10 overdueTask=4，与数据库直查完全一致；admin 套件线上 21/0/3（看板 rate=17% open=9 overdue=1 pathologyHours=6.2、异常事件 张春/呕血/escalated=True）；api 22/0/2、security 13/0/2、portal 12/12；三端走查 staff 16、patient 10、admin 12；CORS 回归正常；demo-reset 已复位
