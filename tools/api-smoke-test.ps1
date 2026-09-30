@@ -534,7 +534,7 @@ Test-Step 'history for an unknown task -> 404' {
 # -----------------------------------------------------------------------------
 # 8. reminders (C12)
 #
-#    The reminder policy (docs 第04轮 / 第07轮) is: T-1 18:00 preview, 08:00
+#    The reminder policy (docs round 4 / round 7) is: T-1 18:00 preview, 08:00
 #    start then every 2 h on the due day, three times a day for 1-3 days
 #    overdue, once a day until 14 days, and nothing between 22:00 and 07:00.
 #    What is asserted here is the *shape* of the schedule (allowed slots, quiet
@@ -604,7 +604,14 @@ Test-Step 'the scan is idempotent (scheduler)' {
     $path = '/api/dev/reminders/scan?at=' + [uri]::EscapeDataString($stamp)
     $first = Invoke-Api -Method Post -Path $path -Headers $script:managerHeaders
     $second = Invoke-Api -Method Post -Path $path -Headers $script:managerHeaders
-    Assert-True ($first.created -ge 1) "the 10:00 scan created nothing (demo has no task due today?)"
+    # The "it created rows" half is only asserted locally: on a deployment that
+    # slot may already have been scanned (by the timer, or by a manual check),
+    # and created=0 there is exactly what idempotency looks like - not a bug.
+    if ($script:LocalDevDbUp) {
+        Assert-True ($first.created -ge 1) "the 10:00 scan created nothing (demo has no task due today?)"
+    } elseif ($first.created -eq 0) {
+        Write-Host '        that slot was already scanned - asserting idempotency only' -ForegroundColor DarkGray
+    }
     Assert-True ($second.created -eq 0) "the scan is not idempotent: it created $($second.created) again"
     Write-Host ("        scan@10:00 -> created {0}, re-run {1}" -f $first.created, $second.created) -ForegroundColor DarkGray
     return $first

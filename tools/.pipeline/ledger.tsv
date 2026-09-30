@@ -31,3 +31,10 @@ ts	feature	stage	action	result	fingerprint	signature	note
 2026-09-24 12:00:33	C11-安卓App壳	fix	end	PASS	ab0eae2e8d445e1c	C11-缺GitHub仓库无法出APK	阻塞已解除：代码推到 https://github.com/wuleiaa/yisuifang（master），CI 运行 35953573333 全部步骤成功，产物 followup-staff-debug-apk 约6MB（匿名下载404，需登录GitHub下载）。踩到一个坑：首次推送（同一 push 里既建分支又新增工作流）不会触发 Actions，workflows 列表都是 0；再推一次改动工作流的 commit 才登记并开始跑（已写进交接文档）。剩余：真机安装验证
 2026-09-24 12:37:36	C12-提醒调度器与安卓本地通知	fix	begin		ab0eae2e8d445e1c		
 2026-09-24 12:49:44	C12-提醒调度器与安卓本地通知	fix	end	PASS	ab0eae2e8d445e1c	C12-没有推送通道也要能到点提醒	服务端按 reminder_rule 算提醒时点（plan）+ 每10分钟定时扫描写 notify_log（时点键幂等）+ 回执登记设备；安卓端 Capacitor LocalNotifications 排入系统闹钟、点通知跳任务、浏览器里空操作。本地 api 29/0/0（新增第8节5项：时点白名单/免打扰/48h窗口/幂等/回执落库）、admin 24/0/0、security 15/0/0、portal 12/12、医护端走查 16/16；GitHub CI 构建成功（run 35956926482，APK 6.3MB sha256 6a541ef3…）。未部署到线上，等用户批准；真机验证待做
+2026-09-29 09:59:56	watchdog	qa	fingerprint		6e2630c6f9515225		
+2026-09-29 10:00:17	watchdog	qa	fingerprint		6e2630c6f9515225		
+2026-09-30 09:51:09	watchdog	qa	fingerprint		6e2630c6f9515225		
+2026-09-30 09:51:30	watchdog	qa	fingerprint		6e2630c6f9515225		
+2026-09-30 10:22:10	watchdog	qa	fingerprint		6e2630c6f9515225		
+2026-09-30 10:22:31	watchdog	qa	fingerprint		6e2630c6f9515225		
+2026-09-30 15:34:51	C12-提醒调度器与安卓本地通知	fix	begin		6e2630c6f9515225		
