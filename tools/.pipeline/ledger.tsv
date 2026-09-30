@@ -38,3 +38,4 @@ ts	feature	stage	action	result	fingerprint	signature	note
 2026-09-30 10:22:10	watchdog	qa	fingerprint		6e2630c6f9515225		
 2026-09-30 10:22:31	watchdog	qa	fingerprint		6e2630c6f9515225		
 2026-09-30 15:34:51	C12-提醒调度器与安卓本地通知	fix	begin		6e2630c6f9515225		
+2026-09-30 15:41:50	C12-提醒调度器与安卓本地通知	fix	end	PASS	6e2630c6f9515225	C12-没有推送通道也要能到点提醒	已部署并全量复验：备份 backup/c12-20260930-153452/；线上 jar d98990fe、staff index-BiqAKrOr.js；线上提醒计划 rule=全局默认 quiet=22:00-07:00 items=6 dueToday=1 overdue=2，调度器 10:00 扫描 first=2/second=0（幂等），notify_log 2 条 PENDING（键 DUE_TODAY:2026-09-30T10:00，按人+键去重）；api 26/0/3、admin 21/0/3、security 13/0/2、portal 12/12；三端走查 staff 16、patient 10、admin 12；CORS 回归正常；demo-reset 已复位。设备登记 0（还没真机装过）
